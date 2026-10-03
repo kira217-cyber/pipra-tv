@@ -1,0 +1,59 @@
+import React from "react";
+import { useSearchParams } from "react-router";
+import { SearchX } from "lucide-react";
+
+import ChannelCircle, { ChannelRail, railItemClass } from "../../components/ChannelCircle/ChannelCircle";
+import { VideoGrid } from "../../components/VideoCard/VideoCard";
+import { EmptyState, SectionHeader, Spinner } from "../../components/ui/ui";
+import { useFetch } from "../../hooks/useFetch";
+
+const Search = () => {
+  const [params] = useSearchParams();
+  const q = (params.get("q") || "").trim();
+
+  const { data: videos, loading: loadingVideos } = useFetch(q ? "/api/site/videos" : null, { search: q, limit: 40 });
+  const { data: channels } = useFetch(q ? "/api/site/channels" : null, { search: q, limit: 20 });
+
+  if (!q) return <EmptyState icon={SearchX} title="Search PipraTV" text="Type a video or channel name in the search box." />;
+
+  const videoList = videos?.videos || [];
+  const channelList = channels?.channels || [];
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-xl font-bold sm:text-2xl">
+        Results for <span className="text-brand">“{q}”</span>
+      </h1>
+
+      {channelList.length > 0 && (
+        <section>
+          <SectionHeader title="Channels" />
+          <ChannelRail>
+            {channelList.map((channel) => (
+              <ChannelCircle
+                key={channel.id}
+                name={channel.name}
+                logo={channel.logo}
+                to={`/channel/${channel.id}`}
+                className={railItemClass}
+              />
+            ))}
+          </ChannelRail>
+        </section>
+      )}
+
+      <section>
+        <SectionHeader title="Videos" />
+        {loadingVideos ? (
+          <Spinner />
+        ) : videoList.length === 0 ? (
+          <EmptyState icon={SearchX} title="No videos found" text="Try a different word or check the spelling." />
+        ) : (
+          <VideoGrid videos={videoList} />
+        )}
+      </section>
+    </div>
+  );
+};
+
+export default Search;
