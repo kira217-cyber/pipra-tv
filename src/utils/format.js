@@ -1,13 +1,12 @@
-import { api } from "../api/axios";
+import { API_ORIGIN } from "../api/axios";
 
-// Uploaded images are stored server-side as "/uploads/x.jpg"; video files
-// live on the CDN as full URLs. Either kind goes through here. `width` asks
-// the local dev cache for a resized WebP (ignored by the production API).
+// Uploads are full CDN URLs and pass straight through; anything relative
+// is served by the API itself.
 export const mediaUrl = (path, width) => {
   if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
-  const sized = width && import.meta.env.DEV ? `?w=${width}` : "";
-  return `${api.defaults.baseURL}${path}${sized}`;
+  if (/^(https?:|blob:|data:)/i.test(path)) return path;
+  void width;
+  return import.meta.env.DEV ? path : `${API_ORIGIN}${path}`;
 };
 
 // Standard sizes, so the same image is resized (and cached) only once.
@@ -45,11 +44,14 @@ export const timeAgo = (date) => {
   return "just now";
 };
 
+// "1 view", "5.4M views"
+export const viewsText = (value) => `${formatCount(value)} ${Number(value) === 1 ? "view" : "views"}`;
+
 // "5.4M views · 3 weeks ago", leaving out whichever half isn't known.
 export const videoMeta = (video) =>
   [
-    typeof video?.views === "number" ? `${formatCount(video.views)} views` : null,
-    video?.createdAt ? timeAgo(video.createdAt) : null,
+    typeof video?.views === "number" ? viewsText(video.views) : null,
+    video?.publishedAt || video?.createdAt ? timeAgo(video.publishedAt || video.createdAt) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -62,3 +64,10 @@ export const formatMoney = (value) =>
 
 // Video id shape differs by endpoint: summaries use `id`, raw documents `_id`.
 export const videoId = (video) => video?.id || video?._id;
+
+// Where a channel lives: /@handle (YouTube style), falling back to the id.
+export const channelPath = (channel) =>
+  channel?.handle ? `/@${channel.handle}` : channel?.id ? `/channel/${channel.id}` : "/channels";
+
+export const fullDate = (date) =>
+  date ? new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";

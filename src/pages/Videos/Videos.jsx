@@ -17,7 +17,7 @@ const Videos = () => {
   const category = searchParams.get("category") || "";
   const params = category ? { category } : {};
 
-  const { data: random, loading: loadingRandom } = useFetch("/api/site/videos", {
+  const { data: random, loading: loadingRandom } = useFetch("/api/videos", {
     ...params,
     sort: "random",
     limit: 13,
@@ -29,7 +29,7 @@ const Videos = () => {
   useEffect(() => {
     let cancelled = false;
     api
-      .get("/api/site/videos", { params: { ...(category ? { category } : {}), limit: PAGE_SIZE, page: 1 } })
+      .get("/api/videos", { params: { ...(category ? { category } : {}), sort: "latest", limit: PAGE_SIZE, page: 1 } })
       .then(({ data }) => {
         if (cancelled) return;
         setLatest({
@@ -51,7 +51,7 @@ const Videos = () => {
     setLoadingMore(true);
     try {
       const page = latest.page + 1;
-      const { data } = await api.get("/api/site/videos", { params: { ...params, limit: PAGE_SIZE, page } });
+      const { data } = await api.get("/api/videos", { params: { ...params, sort: "latest", limit: PAGE_SIZE, page } });
       setLatest((previous) => ({
         ...previous,
         videos: [...previous.videos, ...(data?.data?.videos || [])],

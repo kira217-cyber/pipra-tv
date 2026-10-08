@@ -26,7 +26,7 @@ const formatTime = (seconds) => {
   return h > 0 ? `${h}:${m.toString().padStart(2, "0")}:${s}` : `${m}:${s}`;
 };
 
-const VideoPlayer = ({ src, poster, title, adsTarget }) => {
+const VideoPlayer = ({ src, poster, title, adsTarget, onStart }) => {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const hideTimer = useRef(null);
@@ -62,6 +62,24 @@ const VideoPlayer = ({ src, poster, title, adsTarget }) => {
     };
 
     tryPlay();
+  }, [src]);
+
+  // Fires once per source when playback actually begins (view counting).
+  const onStartRef = useRef(onStart);
+  useEffect(() => {
+    onStartRef.current = onStart;
+  });
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    let fired = false;
+    const handle = () => {
+      if (fired) return;
+      fired = true;
+      onStartRef.current?.();
+    };
+    video.addEventListener("playing", handle);
+    return () => video.removeEventListener("playing", handle);
   }, [src]);
 
   const togglePlay = () => {

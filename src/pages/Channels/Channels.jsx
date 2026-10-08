@@ -4,6 +4,7 @@ import { Search, Users } from "lucide-react";
 import ChannelCircle from "../../components/ChannelCircle/ChannelCircle";
 import { EmptyState, GhostButton, PageHeader, Spinner } from "../../components/ui/ui";
 import { api } from "../../api/axios";
+import { channelPath } from "../../utils/format";
 
 const PAGE_SIZE = 40;
 
@@ -22,7 +23,7 @@ const Channels = () => {
   useEffect(() => {
     let cancelled = false;
     api
-      .get("/api/site/channels", { params: { search: query || undefined, limit: PAGE_SIZE, page: 1 } })
+      .get("/api/channels", { params: { search: query || undefined, limit: PAGE_SIZE, page: 1 } })
       .then(({ data }) => {
         if (!cancelled) {
           setState({
@@ -45,7 +46,7 @@ const Channels = () => {
     setLoadingMore(true);
     try {
       const page = state.page + 1;
-      const { data } = await api.get("/api/site/channels", {
+      const { data } = await api.get("/api/channels", {
         params: { search: query || undefined, limit: PAGE_SIZE, page },
       });
       setState((previous) => ({
@@ -81,7 +82,7 @@ const Channels = () => {
         <>
           <div className="grid grid-cols-3 gap-5 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9">
             {state.channels.map((channel) => (
-              <ChannelCircle key={channel.id} name={channel.name} logo={channel.logo} to={`/channel/${channel.id}`} />
+              <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} to={channelPath(channel)} />
             ))}
           </div>
           {state.page < state.totalPages && (

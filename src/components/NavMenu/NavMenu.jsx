@@ -1,11 +1,11 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router";
-import { ChevronRight, Crown, Heart, LogIn, LogOut, Play, Sparkles } from "lucide-react";
+import { ChevronRight, Crown, Heart, LogIn, LogOut, Play } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { Avatar, IconTile, Logo } from "../ui/ui";
-import { BROWSE_MENU, CREATOR_MENU, SETTINGS_MENU, creatorHandle } from "../../utils/menu";
-import { IMG, mediaUrl } from "../../utils/format";
+import { BROWSE_MENU, CREATOR_MENU, SETTINGS_MENU } from "../../utils/menu";
+import { channelPath } from "../../utils/format";
 
 const MenuLink = ({ item, onNavigate, compact }) => (
   <NavLink
@@ -30,18 +30,18 @@ const MenuLink = ({ item, onNavigate, compact }) => (
 );
 
 const ProfileCard = ({ onNavigate }) => {
-  const { user, loginDemo, isDemo } = useAuth();
+  const { user, channel } = useAuth();
   const navigate = useNavigate();
+  const go = (to) => {
+    onNavigate?.();
+    navigate(to);
+  };
 
   if (!user) {
     return (
-      <div className="space-y-2">
       <button
         type="button"
-        onClick={() => {
-          onNavigate?.();
-          navigate("/login");
-        }}
+        onClick={() => go("/login")}
         className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-brand/25 bg-gradient-to-br from-brand/25 to-brand-2/10 p-4 text-left"
       >
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-white">
@@ -49,40 +49,45 @@ const ProfileCard = ({ onNavigate }) => {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-white">Sign in</span>
-          <span className="block text-xs text-muted">Upload, track and earn from your videos</span>
+          <span className="block text-xs text-muted">Like videos, comment, subscribe and upload</span>
         </span>
         <ChevronRight className="h-5 w-5 text-muted" />
       </button>
-      <button
-        type="button"
-        onClick={() => {
-          loginDemo();
-          onNavigate?.();
-          navigate("/studio");
-        }}
-        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-card-2 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
-      >
-        <Sparkles className="h-4 w-4 text-brand" /> Try Demo Account
-      </button>
+    );
+  }
+
+  if (!channel) {
+    return (
+      <div className="rounded-2xl border border-brand/20 bg-gradient-to-br from-[#3a0d1f] to-card p-4">
+        <div className="flex items-center gap-3">
+          <Avatar src={user.avatar} name={user.name} size="h-12 w-12" ring={false} />
+          <span className="min-w-0">
+            <span className="block truncate font-bold text-white">{user.name}</span>
+            <span className="block truncate text-xs text-muted">{user.email || user.phone}</span>
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => go("/channel/create")}
+          className="bg-brand-gradient mt-3 w-full cursor-pointer rounded-xl py-2.5 text-sm font-semibold text-white"
+        >
+          Create your channel
+        </button>
       </div>
     );
   }
 
   return (
     <NavLink
-      to="/studio/profile"
+      to={channelPath(channel)}
       onClick={onNavigate}
       className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-gradient-to-br from-[#3a0d1f] to-card p-4"
     >
-      <Avatar src={mediaUrl(user.channel?.logo, IMG.avatar)} name={user.channel?.name || user.fullName} size="h-14 w-14" />
+      <Avatar src={channel.avatar} name={channel.name} size="h-14 w-14" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-lg font-bold text-white">
-          {user.channel?.name || user.fullName}
-        </span>
-        <span className="block truncate text-sm text-muted">{creatorHandle(user)}</span>
-        <span className="block text-xs text-slate-300">
-          {isDemo ? <span className="rounded bg-amber-400/20 px-1.5 py-0.5 font-semibold text-amber-300">Demo account</span> : "Content Creator"}
-        </span>
+        <span className="block truncate text-lg font-bold text-white">{channel.name}</span>
+        <span className="block truncate text-sm text-muted">@{channel.handle}</span>
+        <span className="block text-xs text-slate-300">View your channel</span>
       </span>
       <ChevronRight className="h-5 w-5 text-muted" />
     </NavLink>
@@ -91,13 +96,11 @@ const ProfileCard = ({ onNavigate }) => {
 
 // The menu shared by the mobile drawer and the desktop sidebar.
 const NavMenu = ({ onNavigate, showBrowse = false }) => {
-  const { user, logout } = useAuth();
+  const { user, channel, logout } = useAuth();
   const navigate = useNavigate();
 
   const creatorMenu = CREATOR_MENU.map((item) =>
-    item.to === "__channel__"
-      ? { ...item, to: !user ? "/login" : user.id === "demo-creator" ? "/channels" : `/channel/${user.id}` }
-      : item,
+    item.to === "__channel__" ? { ...item, to: channel ? channelPath(channel) : user ? "/channel/create" : "/login" } : item,
   );
 
   return (

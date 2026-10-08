@@ -2,6 +2,8 @@ import React from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { House, Plus, Tv, UserRound } from "lucide-react";
 
+import { useAuth } from "../../context/AuthContext";
+
 // Shorts mark — a play triangle in a rounded "S" frame.
 const ShortsIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -39,8 +41,9 @@ const Tab = ({ to, label, icon: Icon, end, isActive: forceActive }) => (
 // gradient Upload button, Shorts and For You (your account area).
 const BottomNav = () => {
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const onShorts = pathname.startsWith("/shorts");
-  const inAccount = /^\/(studio|login|register)/.test(pathname) && pathname !== "/studio/upload";
+  const inAccount = /^\/(you|feed|playlist|studio|login|register|channel\/create)/.test(pathname) && pathname !== "/studio/upload";
 
   return (
     <nav className={`fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden ${onShorts ? "bg-black" : ""}`}>
@@ -69,7 +72,7 @@ const BottomNav = () => {
         </div>
 
         <Tab to="/shorts" label="Shorts" icon={ShortsIcon} />
-        <Tab to="/studio" label="For You" icon={UserRound} isActive={inAccount} />
+        <Tab to={user ? "/you" : "/login"} label="For You" icon={UserRound} isActive={inAccount} />
       </div>
     </nav>
   );

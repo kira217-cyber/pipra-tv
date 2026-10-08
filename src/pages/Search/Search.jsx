@@ -6,13 +6,14 @@ import ChannelCircle, { ChannelRail, railItemClass } from "../../components/Chan
 import { VideoGrid } from "../../components/VideoCard/VideoCard";
 import { EmptyState, SectionHeader, Spinner } from "../../components/ui/ui";
 import { useFetch } from "../../hooks/useFetch";
+import { channelPath } from "../../utils/format";
 
 const Search = () => {
   const [params] = useSearchParams();
   const q = (params.get("q") || "").trim();
 
-  const { data: videos, loading: loadingVideos } = useFetch(q ? "/api/site/videos" : null, { search: q, limit: 40 });
-  const { data: channels } = useFetch(q ? "/api/site/channels" : null, { search: q, limit: 20 });
+  const { data: videos, loading: loadingVideos } = useFetch(q ? "/api/videos" : null, { search: q, limit: 40 });
+  const { data: channels } = useFetch(q ? "/api/channels" : null, { search: q, limit: 20 });
 
   if (!q) return <EmptyState icon={SearchX} title="Search PipraTV" text="Type a video or channel name in the search box." />;
 
@@ -33,8 +34,8 @@ const Search = () => {
               <ChannelCircle
                 key={channel.id}
                 name={channel.name}
-                logo={channel.logo}
-                to={`/channel/${channel.id}`}
+                logo={channel.avatar}
+                to={channelPath(channel)}
                 className={railItemClass}
               />
             ))}

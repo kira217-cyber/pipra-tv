@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import {
   ArrowLeft,
+  Zap,
   ChevronDown,
   ChevronUp,
   BadgeCheck,
@@ -16,13 +17,22 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { toast } from "react-toastify";
 
 import { Spinner } from "../../components/ui/ui";
 import { useFetch } from "../../hooks/useFetch";
-import { useLocalFlag } from "../../hooks/useLocalFlag";
+import Comments from "../../components/Comments/Comments";
+import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
+import { reactToVideo } from "../../api/engage";
+import { api } from "../../api/axios";
+import { studioApi, TOKEN_KEY } from "../../api/studioApi";
+import { useAuth } from "../../context/AuthContext";
+import { useRequireSignIn } from "../../hooks/useRequireSignIn";
+import { formatCount } from "../../utils/format";
+import { useSiteSettings } from "../../hooks/useSiteSettings";
 import { useWatchPresence } from "../../hooks/useWatchPresence";
-import { IMG, mediaUrl, videoId } from "../../utils/format";
+import { channelPath, videoId } from "../../utils/format";
+import { countView } from "../../utils/visitor";
+import { toast } from "../../utils/alerts";
 
 const TABS = [
   { key: "foryou", label: "For You" },
@@ -40,16 +50,48 @@ const RailButton = ({ icon: Icon, label, active, onClick, fill }) => (
   </button>
 );
 
-const handleOf = (name) => `@${(name || "pipratv").toLowerCase().replace(/[^a-z0-9_]+/g, "")}`;
+const handleOf = (channel) => `@${channel?.handle || "pipratv"}`;
 
 const ShortItem = ({ video, muted, onToggleMute }) => {
   const id = videoId(video);
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const counted = useRef(false);
   const [progress, setProgress] = useState(0);
-  const [liked, toggleLike] = useLocalFlag(`pipra_like_${id}`);
-  const [subscribed, toggleSubscribe] = useLocalFlag(`pipra_sub_${video.channelId}`);
+  const { channel: myChannel } = useAuth();
+  const requireSignIn = useRequireSignIn();
+  const [viewer, setViewer] = useState(null); // loaded when this short first plays
+  const [likes, setLikes] = useState(video.likes || 0);
+  const [commentCount, setCommentCount] = useState(video.commentCount || 0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const liked = viewer?.reaction === 1;
+  const isMine = myChannel && myChannel.id === video.channel?.id;
+
+  const loadViewer = () => {
+    if (viewer || !localStorage.getItem(TOKEN_KEY)) return;
+    (localStorage.getItem(TOKEN_KEY) ? studioApi : api)
+      .get(`/api/videos/${id}`)
+      .then(({ data }) => {
+        setViewer(data.data.viewer || { reaction: 0, subscribed: false });
+        setLikes(data.data.video.likes);
+      })
+      .catch(() => {});
+  };
+
+  const toggleLike = async () => {
+    if (!requireSignIn("Sign in to like Shorts")) return;
+    const next = liked ? 0 : 1;
+    setViewer((v) => ({ ...(v || {}), reaction: next }));
+    setLikes((n) => n + (next ? 1 : -1));
+    try {
+      const result = await reactToVideo(id, next ? "like" : "none");
+      setLikes(result.likes);
+    } catch {
+      setViewer((v) => ({ ...(v || {}), reaction: liked ? 1 : 0 }));
+      setLikes(video.likes || 0);
+    }
+  };
 
   useWatchPresence("video", playing ? id : null, video.title);
 
@@ -95,14 +137,21 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
       <div className="relative h-full w-full overflow-hidden bg-black lg:aspect-[9/16] lg:w-auto lg:rounded-2xl">
         <video
           ref={videoRef}
-          src={video.video?.url}
-          poster={mediaUrl(video.thumbnail?.portrait, IMG.portrait)}
+          src={video.videoUrl}
+          poster={video.thumbnail || undefined}
           muted={muted}
           loop
           playsInline
           preload="metadata"
           onClick={togglePlay}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            if (!counted.current) {
+              counted.current = true;
+              loadViewer();
+              countView(id);
+            }
+            setPlaying(true);
+          }}
           onPause={() => setPlaying(false)}
           onTimeUpdate={(event) => {
             const { currentTime, duration } = event.currentTarget;
@@ -140,22 +189,24 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
 
         {/* Right-hand action rail */}
         <div className="absolute bottom-20 right-1.5 flex flex-col items-center gap-4 sm:right-3 lg:bottom-24 lg:gap-5">
-          <Link to={video.channelId ? `/channel/${video.channelId}` : "#"} className="relative mb-1.5">
+          <Link to={channelPath(video.channel)} className="relative mb-1.5">
             <span className="block h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-black lg:h-12 lg:w-12">
-              {video.channelLogo ? (
-                <img src={mediaUrl(video.channelLogo, IMG.avatar)} alt="" className="h-full w-full object-cover" />
+              {video.channel?.avatar ? (
+                <img src={video.channel.avatar} alt="" className="h-full w-full object-cover" />
               ) : (
-                <img src={mediaUrl(video.thumbnail?.portrait, IMG.portrait)} alt="" className="h-full w-full object-cover" />
+                <span className="flex h-full w-full items-center justify-center text-sm font-bold uppercase text-brand">
+                  {(video.channel?.name || "P").slice(0, 2)}
+                </span>
               )}
             </span>
-            {!subscribed && (
+            {!viewer?.subscribed && !isMine && (
               <span className="absolute -bottom-2 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full bg-live">
                 <Plus className="h-3.5 w-3.5 text-white" strokeWidth={3} />
               </span>
             )}
           </Link>
-          <RailButton icon={Heart} label="Like" active={liked} onClick={toggleLike} fill />
-          <RailButton icon={MessageCircle} label="Comment" fill onClick={() => toast.info("Comments are coming soon")} />
+          <RailButton icon={Heart} label={likes ? formatCount(likes) : "Like"} active={liked} onClick={toggleLike} fill />
+          <RailButton icon={MessageCircle} label={commentCount ? formatCount(commentCount) : "Comment"} fill onClick={() => setCommentsOpen(true)} />
           <RailButton icon={Share2} label="Share" fill onClick={share} />
           <RailButton icon={Repeat2} label="Remix" onClick={() => toast.info("Remix is coming soon")} />
         </div>
@@ -163,19 +214,18 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
         {/* Channel + caption */}
         <div className="absolute inset-x-0 bottom-0 px-3 pb-3.5 pr-16 lg:p-4 lg:pr-20">
           <div className="flex items-center gap-2">
-            <Link to={video.channelId ? `/channel/${video.channelId}` : "#"} className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-sm font-semibold text-white">{handleOf(video.channelName)}</span>
-              <BadgeCheck className="h-4 w-4 shrink-0 fill-[#2f86e6] text-white" />
+            <Link to={channelPath(video.channel)} className="flex min-w-0 items-center gap-1">
+              <span className="truncate text-sm font-semibold text-white">{handleOf(video.channel)}</span>
+              {video.channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#2f86e6] text-white" />}
             </Link>
-            <button
-              type="button"
-              onClick={toggleSubscribe}
-              className={`ml-1 shrink-0 cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition ${
-                subscribed ? "bg-white/20 text-white" : "bg-white text-black"
-              }`}
-            >
-              {subscribed ? "Subscribed" : "Subscribe"}
-            </button>
+            {!isMine && (
+              <SubscribeButton
+                key={`${video.channel?.id}-${viewer ? "v" : "x"}`}
+                channelId={video.channel?.id}
+                initial={viewer}
+                size="sm"
+              />
+            )}
           </div>
           <Link to={`/watch/${id}`} className="mt-1.5 line-clamp-1 block text-[13px] leading-snug text-white/95 lg:line-clamp-2 lg:text-sm">
             {video.title}
@@ -183,9 +233,21 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           {video.category && <p className="mt-0.5 truncate text-xs text-white/70">#PipraTV #{video.category} #Shorts</p>}
           <p className="mt-1.5 flex items-center gap-1.5 text-xs text-white/80">
             <Music2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Original Sound - {video.channelName || "PipraTV"}</span>
+            <span className="truncate">Original Sound - {video.channel?.name || "PipraTV"}</span>
           </p>
         </div>
+
+        {commentsOpen && (
+          <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/40" onClick={() => setCommentsOpen(false)}>
+            <div
+              className="max-h-[75%] overflow-y-auto rounded-t-2xl bg-card p-4"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/30" />
+              <Comments videoId={id} creator={video.channel} onCountChange={setCommentCount} />
+            </div>
+          </div>
+        )}
 
         <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
           <div className="h-full bg-brand" style={{ width: `${progress * 100}%` }} />
@@ -205,13 +267,21 @@ const Shorts = () => {
   const feedRef = useRef(null);
   const drag = useRef(null);
   const wheelLock = useRef(0);
-  const { data, loading } = useFetch("/api/site/videos", { sort: "random", limit: 30 });
+  const [searchParams] = useSearchParams();
+  const startId = searchParams.get("v");
+  const { settings } = useSiteSettings();
+  const { data, loading } = useFetch("/api/videos", { type: "shorts", sort: "random", limit: 30 });
+  // Opened from a Short on Home / a channel: start with that one.
+  const { data: first } = useFetch(startId ? `/api/videos/${startId}` : null);
 
   const videos = useMemo(() => {
-    const list = data?.videos || [];
+    const pool = data?.videos || [];
+    const pinned = settings?.home?.pinnedShorts || [];
+    const lead = [...(first?.video?.isShort ? [first.video] : []), ...pinned].filter((v, i, all) => all.findIndex((x) => x.id === v.id) === i);
+    const list = [...lead, ...pool.filter((video) => !lead.some((l) => l.id === video.id))];
     if (tab === "trending") return [...list].sort((a, b) => (b.views || 0) - (a.views || 0));
     return list;
-  }, [data, tab]);
+  }, [data, first, tab, settings]);
 
   // The feed owns the gestures on this page — stop the page behind it
   // from scrolling (or bouncing) at the same time.
@@ -335,6 +405,15 @@ const Shorts = () => {
             <Heart className="h-12 w-12 text-brand" />
             <p className="mt-3 text-lg font-semibold">Follow creators you love</p>
             <p className="mt-1 max-w-sm text-sm text-muted">Shorts from channels you subscribe to will show up here.</p>
+          </div>
+        ) : videos.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <Zap className="h-12 w-12 text-brand" />
+            <p className="mt-3 text-lg font-semibold">No Shorts yet</p>
+            <p className="mt-1 max-w-sm text-sm text-muted">Upload a video of 2 minutes or less and it shows up here.</p>
+            <Link to="/studio/upload" className="bg-brand-gradient mt-5 rounded-xl px-5 py-2.5 text-sm font-semibold">
+              Upload a Short
+            </Link>
           </div>
         ) : (
           <>

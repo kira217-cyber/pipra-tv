@@ -4,13 +4,13 @@ import { EllipsisVertical, Play } from "lucide-react";
 
 import { Avatar } from "../ui/ui";
 import VideoPreview from "../VideoPreview/VideoPreview";
-import { IMG, mediaUrl, videoId, videoMeta } from "../../utils/format";
+import { channelPath, videoId, videoMeta } from "../../utils/format";
 
 const Thumb = ({ video, className = "aspect-video", autoplayInView = false }) => (
   <VideoPreview
     id={`card-${videoId(video)}-${className}`}
-    src={video.video?.url}
-    poster={mediaUrl(video.thumbnail?.landscape, IMG.card)}
+    src={video.videoUrl}
+    poster={video.thumbnail}
     alt={video.title}
     duration={video.duration}
     autoplayInView={autoplayInView}
@@ -25,8 +25,8 @@ export const VideoCard = ({ video, showChannel = true, className = "" }) => (
     <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-white sm:text-[15px]">
       {video.title}
     </p>
-    {showChannel && video.channelName && (
-      <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{video.channelName}</p>
+    {showChannel && video.channel?.name && (
+      <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{video.channel?.name}</p>
     )}
     {videoMeta(video) && (
       <p className="truncate text-xs text-muted sm:text-sm">{videoMeta(video)}</p>
@@ -69,13 +69,13 @@ export const FeaturedVideo = ({ video }) => (
     </Link>
 
     <div className="mt-3 flex gap-3">
-      <Link to={video.channelId ? `/channel/${video.channelId}` : "#"}>
-        <Avatar src={mediaUrl(video.channelLogo, IMG.avatar)} name={video.channelName} size="h-11 w-11" />
+      <Link to={channelPath(video.channel)}>
+        <Avatar src={video.channel?.avatar} name={video.channel?.name} size="h-11 w-11" />
       </Link>
       <Link to={`/watch/${videoId(video)}`} className="min-w-0 flex-1">
         <p className="line-clamp-2 text-base font-semibold text-white sm:text-lg">{video.title}</p>
         <p className="truncate text-sm text-muted">
-          {[video.channelName, videoMeta(video)].filter(Boolean).join(" · ")}
+          {[video.channel?.name, videoMeta(video)].filter(Boolean).join(" · ")}
         </p>
       </Link>
       <EllipsisVertical className="h-5 w-5 shrink-0 text-muted" />
