@@ -26,8 +26,19 @@ const Earning = lazy(() => import("../pages/Studio/Earning"));
 const VerifyIdentity = lazy(() => import("../pages/Studio/VerifyIdentity"));
 const Profile = lazy(() => import("../pages/Studio/Profile"));
 const ComingSoon = lazy(() => import("../pages/Studio/ComingSoon"));
+const CreateChannel = lazy(() => import("../pages/Studio/CreateChannel"));
+const CustomizeChannel = lazy(() => import("../pages/Studio/CustomizeChannel"));
+const libraryPage = (name) => lazy(() => import("../pages/Library/Library").then((module) => ({ default: module[name] })));
+const You = libraryPage("You");
+const SubscriptionsFeed = libraryPage("SubscriptionsFeed");
+const History = libraryPage("History");
+const Liked = libraryPage("Liked");
+const PlaylistPage = libraryPage("PlaylistPage");
+const ChannelByHandle = lazy(() => import("../pages/Channel/Channel").then((module) => ({ default: module.ChannelByHandle })));
 
-const creator = (element) => <RequireAuth>{element}</RequireAuth>;
+// Signed in, and (for creator tools) owning a channel.
+const signedIn = (element) => <RequireAuth>{element}</RequireAuth>;
+const creator = (element) => <RequireAuth channel>{element}</RequireAuth>;
 
 export const router = createBrowserRouter([
   {
@@ -47,15 +58,22 @@ export const router = createBrowserRouter([
       { path: "search", element: <Search /> },
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
+      { path: "channel/create", element: signedIn(<CreateChannel />) },
+      { path: "you", element: signedIn(<You />) },
+      { path: "feed/subscriptions", element: signedIn(<SubscriptionsFeed />) },
+      { path: "feed/history", element: signedIn(<History />) },
+      { path: "feed/liked", element: signedIn(<Liked />) },
+      { path: "playlist/:id", element: <PlaylistPage /> },
 
       { path: "studio", element: creator(<Dashboard />) },
       { path: "studio/videos", element: creator(<MyVideos />) },
       { path: "studio/upload", element: creator(<VideoEditor mode="create" />) },
       { path: "studio/videos/:id/edit", element: creator(<VideoEditor mode="edit" />) },
+      { path: "studio/customize", element: creator(<CustomizeChannel />) },
       { path: "studio/analytics", element: creator(<Analytics />) },
       { path: "studio/earning", element: creator(<Earning />) },
-      { path: "studio/verify", element: creator(<VerifyIdentity />) },
-      { path: "studio/profile", element: creator(<Profile />) },
+      { path: "studio/verify", element: signedIn(<VerifyIdentity />) },
+      { path: "studio/profile", element: signedIn(<Profile />) },
       {
         path: "studio/payout",
         element: creator(
@@ -75,6 +93,8 @@ export const router = createBrowserRouter([
         ),
       },
 
+      // YouTube-style channel address: /@handle
+      { path: ":at", element: <ChannelByHandle /> },
       { path: "*", element: <NotFound /> },
     ],
   },

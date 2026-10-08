@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { Eye, EyeOff, Lock, Sparkles, UserRound } from "lucide-react";
-import { toast } from "react-toastify";
+import { Eye, EyeOff, Lock, UserRound } from "lucide-react";
 
 import AuthShell from "./AuthShell";
 import { Field, PrimaryButton, inputClass } from "../../components/ui/ui";
 import { useAuth } from "../../context/AuthContext";
 import { apiError } from "../../api/studioApi";
+import { toast } from "../../utils/alerts";
 
 const Login = () => {
-  const { user, login, loginDemo } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [identifier, setIdentifier] = useState("");
@@ -17,7 +17,7 @@ const Login = () => {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const target = location.state?.from || "/studio";
+  const target = location.state?.from || "/";
 
   if (user) return <Navigate to={target} replace />;
 
@@ -25,8 +25,8 @@ const Login = () => {
     event.preventDefault();
     setBusy(true);
     try {
-      await login({ identifier: identifier.trim(), password });
-      toast.success("Welcome back!");
+      const session = await login({ identifier: identifier.trim(), password });
+      toast.success(`Welcome back, ${session.user.name.split(" ")[0]}!`);
       navigate(target, { replace: true });
     } catch (error) {
       toast.error(apiError(error, "Sign in failed"));
@@ -37,8 +37,8 @@ const Login = () => {
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Sign in to upload videos and manage your channel"
+      title="Sign in"
+      subtitle="to continue to PipraTV"
       footer={
         <>
           New to PipraTV?{" "}
@@ -54,7 +54,7 @@ const Login = () => {
             required
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
-            placeholder="you@example.com"
+            placeholder="you@example.com or 01XXXXXXXXX"
             autoComplete="username"
             className={inputClass}
           />
@@ -77,23 +77,6 @@ const Login = () => {
           {busy ? "Signing in..." : "Sign in"}
         </PrimaryButton>
       </form>
-
-      <div className="my-5 flex items-center gap-3 text-xs text-muted">
-        <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          loginDemo();
-          toast.success("You're in the demo account — nothing you do here is saved.");
-          navigate(target, { replace: true });
-        }}
-        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-brand/50 bg-brand/10 px-5 py-3 font-semibold text-white transition hover:bg-brand/20"
-      >
-        <Sparkles className="h-5 w-5 text-brand" /> Try Demo Account
-      </button>
-      <p className="mt-2 text-center text-xs text-muted">See the creator pages without signing up.</p>
     </AuthShell>
   );
 };

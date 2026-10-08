@@ -1,15 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router";
-import { ChevronRight, Info, Loader2 } from "lucide-react";
+import { ChevronRight, Eye, EyeOff, Info, Loader2 } from "lucide-react";
 
 import logo from "../../assets/pipra-tv-logo.png";
+import { useSiteSettings } from "../../hooks/useSiteSettings";
 
 // Small building blocks shared by every page of the new design.
 
-// The bundled brand mark — shipped with the app so it paints instantly
-// instead of waiting on the (slow) uploads server.
+// The admin-uploaded logo (Site settings) when there is one, otherwise the
+// brand mark bundled with the app.
 export const Logo = ({ className = "h-9" }) => {
-  const src = logo;
+  const { settings } = useSiteSettings();
+  const src = settings?.logo || logo;
 
   return (
     <img
@@ -160,3 +162,24 @@ export const Field = ({ label, icon: Icon, required, children }) => (
 
 export const inputClass =
   "h-12 w-full min-w-0 bg-transparent text-white outline-none placeholder:text-slate-500 [color-scheme:dark]";
+
+// A password input with a show/hide eye — goes inside <Field>.
+export const PasswordInput = (props) => {
+  const [show, setShow] = useState(false);
+  return (
+    <>
+      <input {...props} type={show ? "text" : "password"} className={inputClass} />
+      <button
+        type="button"
+        onClick={(event) => {
+          event.preventDefault();
+          setShow((value) => !value);
+        }}
+        className="-mr-1 shrink-0 cursor-pointer rounded-full p-1.5 text-muted hover:bg-white/10 hover:text-white"
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
+    </>
+  );
+};

@@ -72,3 +72,13 @@ body {
     max-width: 1100px;
   }
 }
+
+/* iPhone Safari zooms into any field under 16px when it's focused and doesn't
+   zoom back out, leaving the page wider than the screen. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

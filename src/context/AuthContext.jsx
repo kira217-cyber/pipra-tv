@@ -1,74 +1,79 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
-import {
-  studioApi,
-  TOKEN_KEY,
-  USER_KEY,
-  SESSION_EXPIRED_EVENT,
-} from "../api/studioApi";
-import { DEMO_FLAG, DEMO_USER, isDemoMode } from "../api/demoAdapter";
+import { studioApi, TOKEN_KEY, USER_KEY, CHANNEL_KEY, SESSION_EXPIRED_EVENT } from "../api/studioApi";
 import { clearAuthCache } from "../hooks/useFetch";
+import { toast } from "../utils/alerts";
 
-// One account system for the new site: a creator account (StudioUser).
-// Anyone can browse signed out; signing in unlocks the creator pages —
-// Dashboard, All Videos, Analytics, Earning, Upload, Profile.
+// One account type for everyone (YouTube-style). `channel` is the user's
+// own channel, or null until they create one.
 const AuthContext = createContext(null);
 
-const readStoredUser = () => {
+const read = (key) => {
   try {
-    return JSON.parse(localStorage.getItem(USER_KEY) || "null");
+    return JSON.parse(localStorage.getItem(key) || "null");
   } catch {
     return null;
   }
 };
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() =>
-    localStorage.getItem(TOKEN_KEY) ? readStoredUser() : null,
-  );
-  const [checking, setChecking] = useState(() => Boolean(localStorage.getItem(TOKEN_KEY)));
+const store = (key, value) => {
+  if (value) localStorage.setItem(key, JSON.stringify(value));
+  else localStorage.removeItem(key);
+};
 
-  const saveSession = useCallback((token, nextUser) => {
-    clearAuthCache();
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
-    setUser(nextUser);
+export const AuthProvider = ({ children }) => {
+  const hasToken = Boolean(localStorage.getItem(TOKEN_KEY));
+  const [user, setUserState] = useState(() => (hasToken ? read(USER_KEY) : null));
+  const [channel, setChannelState] = useState(() => (hasToken ? read(CHANNEL_KEY) : null));
+  const [checking, setChecking] = useState(hasToken);
+
+  const setUser = useCallback((next) => {
+    store(USER_KEY, next);
+    setUserState(next);
   }, []);
+
+  const setChannel = useCallback((next) => {
+    store(CHANNEL_KEY, next);
+    setChannelState(next);
+  }, []);
+
+  const saveSession = useCallback(
+    ({ token, user: nextUser, channel: nextChannel }) => {
+      clearAuthCache();
+      localStorage.setItem(TOKEN_KEY, token);
+      setUser(nextUser);
+      setChannel(nextChannel || null);
+    },
+    [setUser, setChannel],
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(DEMO_FLAG);
     clearAuthCache();
     setUser(null);
-  }, []);
+    setChannel(null);
+  }, [setUser, setChannel]);
 
-  const refreshProfile = useCallback(async () => {
-    const { data } = await studioApi.get("/api/studio/profile");
-    const fresh = data?.data?.user || null;
-    if (fresh) {
-      localStorage.setItem(USER_KEY, JSON.stringify(fresh));
-      setUser(fresh);
-    }
-    return fresh;
-  }, []);
+  const refresh = useCallback(async () => {
+    const { data } = await studioApi.get("/api/auth/me");
+    setUser(data.data.user);
+    setChannel(data.data.channel);
+    return data.data;
+  }, [setUser, setChannel]);
 
   // Re-validate a stored session once on load.
   useEffect(() => {
-    if (!localStorage.getItem(TOKEN_KEY)) return;
-
+    if (!localStorage.getItem(TOKEN_KEY)) return undefined;
     let cancelled = false;
     studioApi
-      .get("/api/studio/profile")
+      .get("/api/auth/me")
       .then(({ data }) => {
-        const fresh = data?.data?.user;
-        if (cancelled || !fresh) return;
-        localStorage.setItem(USER_KEY, JSON.stringify(fresh));
-        setUser(fresh);
+        if (cancelled) return;
+        setUser(data.data.user);
+        setChannel(data.data.channel);
       })
-      .catch(() => {
-        if (!cancelled) logout();
+      .catch((error) => {
+        if (!cancelled && error?.response?.status === 401) logout();
       })
       .finally(() => {
         if (!cancelled) setChecking(false);
@@ -76,7 +81,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, [logout]);
+  }, [logout, setUser, setChannel]);
 
   useEffect(() => {
     const onExpired = () => {
@@ -84,42 +89,30 @@ export const AuthProvider = ({ children }) => {
       logout();
       toast.error("Session expired. Please sign in again.");
     };
-
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [logout]);
 
   const login = useCallback(
     async ({ identifier, password }) => {
-      localStorage.removeItem(DEMO_FLAG);
-      const { data } = await studioApi.post("/api/studio/login", { identifier, password });
-      saveSession(data.data.token, data.data.user);
-      return data.data.user;
+      const { data } = await studioApi.post("/api/auth/login", { identifier, password });
+      saveSession(data.data);
+      return data.data;
     },
     [saveSession],
   );
 
-  // Signs in as the sample creator (see api/demoAdapter.js).
-  const loginDemo = useCallback(() => {
-    localStorage.setItem(DEMO_FLAG, "1");
-    saveSession("demo", DEMO_USER);
-    return DEMO_USER;
-  }, [saveSession]);
-
   const register = useCallback(
     async (payload) => {
-      localStorage.removeItem(DEMO_FLAG);
-      const { data } = await studioApi.post("/api/studio/register", payload);
-      saveSession(data.data.token, data.data.user);
-      return data.data.user;
+      const { data } = await studioApi.post("/api/auth/register", payload);
+      saveSession(data.data);
+      return data.data;
     },
     [saveSession],
   );
 
   return (
-    <AuthContext.Provider
-      value={{ user, checking, login, loginDemo, register, logout, refreshProfile, setUser, isDemo: Boolean(user) && isDemoMode() }}
-    >
+    <AuthContext.Provider value={{ user, channel, checking, login, register, logout, refresh, setUser, setChannel }}>
       {children}
     </AuthContext.Provider>
   );
