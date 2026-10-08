@@ -1,38 +1,26 @@
 import { useEffect, useState } from "react";
+
 import { api } from "../api/axios";
 
-// Fetches the currently-active in-player ad campaigns targeted at one
-// specific video or Live TV channel — separate from the shared
-// useSiteSettings bundle since this varies per watched item.
+// In-player ad campaigns (admin → Ads → video ads) for one video or Live TV
+// channel.
 export const useAdCampaigns = ({ video, liveTv } = {}) => {
-  const [campaigns, setCampaigns] = useState([]);
+  const [state, setState] = useState({ key: null, campaigns: [] });
+  const key = video ? `v:${video}` : liveTv ? `l:${liveTv}` : null;
 
   useEffect(() => {
-    if (!video && !liveTv) return undefined;
-
+    if (!key) return undefined;
     let cancelled = false;
-
-    const load = () => {
-      api
-        .get("/api/site/ad-campaigns", {
-          params: video ? { video } : { liveTv },
-        })
-        .then(({ data }) => {
-          if (!cancelled) setCampaigns(data?.data?.campaigns || []);
-        })
-        .catch(() => {
-          if (!cancelled) setCampaigns([]);
-        });
-    };
-
-    load();
-
+    api
+      .get("/api/site/ad-campaigns", { params: video ? { video } : { liveTv } })
+      .then(({ data }) => !cancelled && setState({ key, campaigns: data?.data?.campaigns || [] }))
+      .catch(() => !cancelled && setState({ key, campaigns: [] }));
     return () => {
       cancelled = true;
     };
-  }, [video, liveTv]);
+  }, [key, video, liveTv]);
 
-  return { campaigns };
+  return { campaigns: state.key === key ? state.campaigns : [] };
 };
 
 export default useAdCampaigns;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Live-looking audience numbers for a channel or a video. There is no
 // per-item analytics on the server, so both numbers are derived on the
@@ -92,17 +92,20 @@ const buildProfile = (id) => {
 export const useViewerStats = (id) => {
   const [online, setOnline] = useState(0);
   const [views, setViews] = useState(0);
+  const [profile, setProfile] = useState(null);
 
-  const profileRef = useRef(null);
+  // A new id starts from its own profile — reset while rendering, not in
+  // the effect, so there's no extra render with the old numbers.
+  if (id && profile?.id !== id) {
+    const next = { id, ...buildProfile(id) };
+    setProfile(next);
+    setOnline(next.onlineBase);
+    setViews(next.viewsStart);
+  }
 
   useEffect(() => {
-    if (!id) return undefined;
+    if (!id || profile?.id !== id) return undefined;
 
-    const profile = buildProfile(id);
-    profileRef.current = profile;
-
-    setOnline(profile.onlineBase);
-    setViews(profile.viewsStart);
     storeViews(id, profile.viewsStart);
 
     const onlineTimer = window.setInterval(() => {
@@ -132,7 +135,7 @@ export const useViewerStats = (id) => {
       window.clearInterval(onlineTimer);
       window.clearTimeout(viewsTimer);
     };
-  }, [id]);
+  }, [id, profile]);
 
   return { online, views };
 };

@@ -152,13 +152,14 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
   useEffect(() => {
     if (!playbackStarted || !campaigns || campaigns.length === 0) return undefined;
 
+    const timers = showTimersRef.current;
     campaigns.forEach((campaign) => {
       scheduleCampaign(campaign, campaign.firstDelaySeconds ?? 30);
     });
 
     return () => {
-      showTimersRef.current.forEach((timer) => clearTimeout(timer));
-      showTimersRef.current.clear();
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
       queueRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

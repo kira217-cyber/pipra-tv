@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { api } from "../api/axios";
+import { mediaUrl } from "../utils/format";
 import { useSiteSettings } from "./useSiteSettings";
 
 // index.html ships a bundled default icon; this is only swapped in when
@@ -31,7 +31,7 @@ export const useSiteFavicon = () => {
 
   useEffect(() => {
     const href = favicon
-      ? `${api.defaults.baseURL}${favicon}`
+      ? mediaUrl(favicon)
       : DEFAULT_FAVICON;
 
     setIconHref("icon", href);

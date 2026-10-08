@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
-import { FacebookIcon, TelegramIcon, YoutubeIcon } from "./socialIcons";
+import { FacebookIcon, InstagramIcon, TelegramIcon, TiktokIcon, YoutubeIcon } from "./socialIcons";
 
 import Header from "../components/Header/Header";
 import BottomNav from "../components/BottomNav/BottomNav";
@@ -9,14 +9,16 @@ import { Logo, Spinner } from "../components/ui/ui";
 import { getPresenceSocket } from "../hooks/presenceSocket";
 import { useSiteFavicon } from "../hooks/useSiteFavicon";
 import { useSiteSettings } from "../hooks/useSiteSettings";
-import { IMG, mediaUrl } from "../utils/format";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
+  const links = settings?.socialLinks || {};
   const social = [
-    { url: settings?.socialLinks?.facebook, icon: FacebookIcon, label: "Facebook" },
-    { url: settings?.socialLinks?.youtube, icon: YoutubeIcon, label: "YouTube" },
-    { url: settings?.socialLinks?.telegram, icon: TelegramIcon, label: "Telegram" },
+    { url: links.facebook, icon: FacebookIcon, label: "Facebook" },
+    { url: links.youtube, icon: YoutubeIcon, label: "YouTube" },
+    { url: links.telegram, icon: TelegramIcon, label: "Telegram" },
+    { url: links.instagram, icon: InstagramIcon, label: "Instagram" },
+    { url: links.tiktok, icon: TiktokIcon, label: "TikTok" },
   ].filter((item) => item.url);
 
   return (
@@ -28,20 +30,13 @@ const Footer = () => {
         </div>
 
         {settings?.footerLinks?.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-300">
             {settings.footerLinks.map((link) => (
-              <a
-                key={link._id}
-                href={link.url}
-                target={link.openInNewTab ? "_blank" : undefined}
-                rel="noreferrer"
-                title={link.label}
-                className="overflow-hidden rounded-lg border border-line bg-card-2"
-              >
-                <img src={mediaUrl(link.image, IMG.avatar)} alt={link.label} className="h-10 w-auto object-contain" />
+              <a key={`${link.label}-${link.url}`} href={link.url} target="_blank" rel="noreferrer" className="hover:text-white">
+                {link.label}
               </a>
             ))}
-          </div>
+          </nav>
         )}
 
         <div className="flex items-center gap-2">
@@ -60,10 +55,59 @@ const Footer = () => {
         </div>
       </div>
       <p className="mt-6 text-xs text-slate-500">
-        © {new Date().getFullYear()} PipraTV. All rights reserved. ·{" "}
-        <Link to="/channels" className="hover:text-white">Channels</Link>
+        © {new Date().getFullYear()} {settings?.siteName || "PipraTV"}. All rights reserved.
+        {settings?.contactEmail && (
+          <>
+            {" "}·{" "}
+            <a href={`mailto:${settings.contactEmail}`} className="hover:text-white">
+              {settings.contactEmail}
+            </a>
+          </>
+        )}{" "}
+        · <Link to="/channels" className="hover:text-white">Channels</Link>
       </p>
     </footer>
+  );
+};
+
+// One-line notice from admin → Site settings → Announcement bar.
+const Announcement = () => {
+  const { settings } = useSiteSettings();
+  const note = settings?.announcement;
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return sessionStorage.getItem("pipra_announcement_hidden") === note?.text;
+    } catch {
+      return false;
+    }
+  });
+  if (!note?.text || hidden) return null;
+  const text = <span className="min-w-0 flex-1 truncate">{note.text}</span>;
+  return (
+    <div className="-mx-4 mb-4 flex items-center gap-3 bg-brand-gradient px-4 py-2 text-sm font-medium sm:mx-0 sm:rounded-xl">
+      {note.url ? (
+        <a href={note.url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 hover:underline">
+          {text}
+        </a>
+      ) : (
+        text
+      )}
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => {
+          try {
+            sessionStorage.setItem("pipra_announcement_hidden", note.text);
+          } catch {
+            // Storage blocked — it just comes back next page.
+          }
+          setHidden(true);
+        }}
+        className="cursor-pointer rounded-full px-1.5 text-white/90 hover:bg-white/20"
+      >
+        ✕
+      </button>
+    </div>
   );
 };
 
@@ -144,6 +188,7 @@ const AppLayout = () => {
           </Suspense>
         ) : (
           <main className="pb-bottom-nav mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+            <Announcement />
             <Suspense fallback={<Spinner className="min-h-[60vh]" />}>
               <Outlet />
             </Suspense>
