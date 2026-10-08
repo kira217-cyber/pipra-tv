@@ -72,7 +72,8 @@ const Axes = ({ width, height, max, format, labels, xFor }) => {
 export const BarChart = ({ data, color = "#22c55e", height = 200, format = (v) => v, valueFormat }) => {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState(null);
-  const max = niceMax(Math.max(...data.map((d) => d.value), 0));
+  // At least 0-1-2-3 on the axis, so small counts never show repeated labels.
+  const max = niceMax(Math.max(3, ...data.map((d) => d.value)));
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = height - PAD.top - PAD.bottom;
   const step = data.length ? plotW / data.length : 0;
@@ -115,7 +116,8 @@ export const BarChart = ({ data, color = "#22c55e", height = 200, format = (v) =
 export const AreaChart = ({ data, color = "#2f86e6", height = 210, format = (v) => v, valueFormat }) => {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState(null);
-  const max = niceMax(Math.max(...data.map((d) => d.value), 0));
+  // At least 0-1-2-3 on the axis, so small counts never show repeated labels.
+  const max = niceMax(Math.max(3, ...data.map((d) => d.value)));
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = height - PAD.top - PAD.bottom;
   const xFor = (index) => PAD.left + (data.length > 1 ? (plotW * index) / (data.length - 1) : plotW / 2);

@@ -1,16 +1,6 @@
 import React from "react";
 import { Link } from "react-router";
-import {
-  BarChart3,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock,
-  CloudUpload,
-  Eye,
-  Film,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react";
+import { BarChart3, CircleDollarSign, CloudUpload, Eye, Film, MessageSquare, Palette, ThumbsUp, Users, Zap } from "lucide-react";
 
 import { BarChart } from "../../components/Charts/Charts";
 import { Avatar, Card, EmptyState, PageHeader, SectionHeader, Spinner } from "../../components/ui/ui";
@@ -18,9 +8,8 @@ import { studioApi } from "../../api/studioApi";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { categoryLabel } from "../../utils/categories";
-import { creatorHandle } from "../../utils/menu";
-import { formatCount, IMG, mediaUrl, timeAgo } from "../../utils/format";
-import { StatusPill } from "./MyVideos";
+import { channelPath, formatCount, timeAgo, viewsText } from "../../utils/format";
+import { VisibilityPill } from "./MyVideos";
 
 const StatTile = ({ icon: Icon, label, value, color }) => (
   <Card className="p-4">
@@ -34,15 +23,15 @@ const StatTile = ({ icon: Icon, label, value, color }) => (
 
 const QUICK_ACTIONS = [
   { to: "/studio/upload", label: "Upload video", icon: CloudUpload, color: "#ff2d6f" },
+  { to: "/studio/customize", label: "Customize channel", icon: Palette, color: "#7c3aed" },
   { to: "/studio/analytics", label: "Analytics", icon: BarChart3, color: "#16a34a" },
   { to: "/studio/earning", label: "Earning", icon: CircleDollarSign, color: "#d97706" },
-  { to: "/studio/verify", label: "Get verified", icon: ShieldCheck, color: "#2f86e6" },
 ];
 
-// Creator home: real numbers from /api/studio/videos/stats.
+// Channel dashboard — every number here comes from the server.
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { data: stats, loading } = useFetch("/api/studio/videos/stats", undefined, studioApi);
+  const { user, channel } = useAuth();
+  const { data: stats, loading } = useFetch("/api/studio/stats", undefined, studioApi);
   const { data: recent } = useFetch("/api/studio/videos", { limit: 5 }, studioApi);
 
   if (loading || !stats) return <Spinner className="min-h-[60vh]" />;
@@ -53,29 +42,32 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" subtitle={`Welcome back, ${user.fullName.split(" ")[0]}! Here's how your channel is doing.`}>
+      <PageHeader title="Channel dashboard" subtitle={`Welcome back, ${user.name.split(" ")[0]}!`}>
         <Link to="/studio/upload" className="bg-brand-gradient flex items-center gap-2 rounded-xl px-5 py-3 font-semibold">
-          <CloudUpload className="h-5 w-5" /> Upload Video
+          <CloudUpload className="h-5 w-5" /> Upload
         </Link>
       </PageHeader>
 
-      {!user.channel && (
-        <Card className="flex flex-wrap items-center justify-between gap-3 border-brand/30 bg-brand/10 p-4">
-          <p className="text-sm">
-            <span className="font-semibold">Set up your channel</span> — add a channel name and logo so viewers can find you.
+      <Card className="flex items-center gap-3 p-4">
+        <Avatar src={channel.avatar} name={channel.name} size="h-12 w-12" ring={false} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{channel.name}</p>
+          <p className="text-sm text-muted">
+            @{channel.handle} · {formatCount(stats.subscribers)} subscribers
           </p>
-          <Link to="/studio/profile" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold">
-            Set up channel
-          </Link>
-        </Card>
-      )}
+        </div>
+        <Link to={channelPath(channel)} className="shrink-0 text-sm font-semibold text-[#3ea6ff]">
+          View channel
+        </Link>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile icon={Film} label="Total videos" value={stats.total} color="#a855f7" />
-        <StatTile icon={Eye} label="Total views" value={formatCount(stats.views)} color="#2f86e6" />
-        <StatTile icon={CheckCircle2} label="Public" value={stats.active} color="#22c55e" />
-        <StatTile icon={Clock} label="In review" value={stats.pending} color="#d97706" />
-        <StatTile icon={XCircle} label="Rejected" value={stats.rejected} color="#e3172f" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatTile icon={Film} label="Videos" value={stats.total - stats.shorts} color="#a855f7" />
+        <StatTile icon={Zap} label="Shorts" value={stats.shorts} color="#ff3d7f" />
+        <StatTile icon={Eye} label="Views" value={formatCount(stats.views)} color="#2f86e6" />
+        <StatTile icon={ThumbsUp} label="Likes" value={formatCount(stats.likes)} color="#22c55e" />
+        <StatTile icon={MessageSquare} label="Comments" value={formatCount(stats.comments)} color="#d97706" />
+        <StatTile icon={Users} label="Subscribers" value={formatCount(stats.subscribers)} color="#0ea5e9" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -110,7 +102,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {QUICK_ACTIONS.map(({ to, label, icon: Icon, color }) => (
           <Link key={to} to={to} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 transition hover:bg-card-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: color }}>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: color }}>
               <Icon className="h-5 w-5" />
             </span>
             <span className="text-sm font-semibold">{label}</span>
@@ -119,41 +111,33 @@ const Dashboard = () => {
       </div>
 
       <section>
-        <SectionHeader title="Recent uploads" to="/studio/videos" />
+        <SectionHeader title="Latest uploads" to="/studio/videos" />
         {recent?.videos?.length ? (
           <Card className="divide-y divide-line">
             {recent.videos.map((video) => (
               <Link key={video.id} to={`/studio/videos/${video.id}/edit`} className="flex items-center gap-3 p-3 hover:bg-white/[0.03]">
-                <img src={mediaUrl(video.thumbnail?.landscape, IMG.card)} alt="" className="aspect-video w-28 shrink-0 rounded-lg object-cover" />
+                <span className="relative w-28 shrink-0 overflow-hidden rounded-lg bg-card-2">
+                  {video.thumbnail && <img src={video.thumbnail} alt="" className="aspect-video w-full object-cover" />}
+                  <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-[10px] font-semibold">{video.duration}</span>
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{video.title}</p>
                   <p className="text-xs text-muted">
-                    {formatCount(video.views)} views · {timeAgo(video.createdAt)}
+                    {viewsText(video.views)} · {formatCount(video.likes)} likes · {timeAgo(video.publishedAt)}
                   </p>
                 </div>
-                <StatusPill status={video.status} />
+                <VisibilityPill video={video} />
               </Link>
             ))}
           </Card>
         ) : (
-          <EmptyState icon={CloudUpload} title="No uploads yet" text="Upload your first video to start your channel.">
+          <EmptyState icon={CloudUpload} title="No uploads yet" text="Upload your first video or Short to start your channel.">
             <Link to="/studio/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
               Upload video
             </Link>
           </EmptyState>
         )}
       </section>
-
-      <Card className="flex items-center gap-3 p-4 lg:hidden">
-        <Avatar src={mediaUrl(user.channel?.logo, IMG.avatar)} name={user.channel?.name || user.fullName} size="h-10 w-10" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{user.channel?.name || user.fullName}</p>
-          <p className="text-xs text-muted">{creatorHandle(user)}</p>
-        </div>
-        <Link to={`/channel/${user.id}`} className="text-sm font-semibold text-brand">
-          View channel
-        </Link>
-      </Card>
     </div>
   );
 };

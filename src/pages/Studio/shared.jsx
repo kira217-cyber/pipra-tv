@@ -2,8 +2,7 @@ import React from "react";
 import { Link } from "react-router";
 import { ArrowUp, EllipsisVertical, MessageSquare, ThumbsUp, Eye } from "lucide-react";
 
-import { formatCount, IMG, mediaUrl, videoId } from "../../utils/format";
-import { demoVideoEngagement } from "../../utils/demo";
+import { formatCount, videoId } from "../../utils/format";
 
 // Pieces shared by the creator pages (Dashboard, Analytics, Earning).
 
@@ -27,7 +26,6 @@ export const GradientTile = ({ icon: Icon, label, value, growth, from, to, borde
 
 // One row of the "Top Performing / Top Earning Videos" lists.
 export const VideoStatRow = ({ video, rank, right }) => {
-  const engagement = demoVideoEngagement(video);
   return (
     <div className="flex items-center gap-3 border-b border-line py-3 last:border-0">
       {rank && (
@@ -36,7 +34,7 @@ export const VideoStatRow = ({ video, rank, right }) => {
         </span>
       )}
       <Link to={`/watch/${videoId(video)}`} className="relative w-28 shrink-0 overflow-hidden rounded-lg sm:w-36">
-        <img src={mediaUrl(video.thumbnail?.landscape, IMG.card)} alt="" className="aspect-video w-full object-cover" loading="lazy" />
+        {video.thumbnail ? <img src={video.thumbnail} alt="" className="aspect-video w-full object-cover" loading="lazy" /> : <span className="block aspect-video bg-card-2" />}
         {video.duration && (
           <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-[10px] font-semibold">{video.duration}</span>
         )}
@@ -48,10 +46,10 @@ export const VideoStatRow = ({ video, rank, right }) => {
             <Eye className="h-3.5 w-3.5" /> {formatCount(video.views)}
           </span>
           <span className="flex items-center gap-1">
-            <ThumbsUp className="h-3.5 w-3.5" /> {formatCount(engagement.likes)}
+            <ThumbsUp className="h-3.5 w-3.5" /> {formatCount(video.likes)}
           </span>
           <span className="flex items-center gap-1">
-            <MessageSquare className="h-3.5 w-3.5" /> {formatCount(engagement.comments)}
+            <MessageSquare className="h-3.5 w-3.5" /> {formatCount(video.commentCount)}
           </span>
         </p>
       </div>

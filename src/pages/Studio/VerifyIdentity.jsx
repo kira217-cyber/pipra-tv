@@ -19,10 +19,10 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { toast } from "react-toastify";
 
 import { Card, Field, GhostButton, PageHeader, PrimaryButton, inputClass } from "../../components/ui/ui";
 import { useAuth } from "../../context/AuthContext";
+import { toast } from "../../utils/alerts";
 
 const STEPS = [
   { title: "Personal Info", sub: "Basic Information" },
@@ -107,7 +107,7 @@ const VerifyIdentity = () => {
     }
   });
   const [step, setStep] = useState(submitted ? 3 : 0);
-  const [info, setInfo] = useState({ fullName: user.fullName, dob: "", country: "Bangladesh", idType: "" });
+  const [info, setInfo] = useState({ fullName: user.name, dob: "", country: "Bangladesh", idType: "" });
   const [front, setFront] = useState(null);
   const [back, setBack] = useState(null);
   const [selfie, setSelfie] = useState(null);
@@ -259,7 +259,7 @@ const VerifyIdentity = () => {
             <ShieldCheck className="h-16 w-16 fill-[#2f86e6]/30 text-[#60a5fa]" />
             <p className="mt-3 text-xl font-bold">Under Verification</p>
             <p className="mt-1 max-w-md text-sm text-muted">
-              Thanks, {submitted?.fullName || user.fullName}! We've received your {submitted?.idType || "documents"}.
+              Thanks, {submitted?.fullName || user.name}! We've received your {submitted?.idType || "documents"}.
               Verification usually takes 1–3 business days.
             </p>
             {submitted?.submittedAt && (

@@ -21,10 +21,12 @@ const Analytics = () => {
   const [days, setDays] = useState(28);
   const [metric, setMetric] = useState("views");
 
-  const { data: stats, loading } = useFetch("/api/studio/videos/stats", undefined, studioApi);
-  const { data: list } = useFetch("/api/studio/videos", { status: "active", limit: 100 }, studioApi);
+  const { data: stats, loading } = useFetch("/api/studio/stats", undefined, studioApi);
+  const { data: list } = useFetch("/api/studio/videos", { visibility: "public", sort: "views", limit: 100 }, studioApi);
 
   const demo = demoChannel(user.id);
+  // Totals are real; the day-by-day curves, watch time, revenue, audience
+  // and traffic are preview data until the server records them.
 
   // Daily series scaled so the views line adds up to the real total.
   const series = useMemo(() => {
@@ -56,21 +58,20 @@ const Analytics = () => {
       </PageHeader>
 
       <PreviewNotice>
-        Total views and your top videos are real. Subscribers, likes, comments, watch time, revenue, audience and traffic
-        are preview data until those features go live.
+        Totals (views, likes, comments, subscribers) and your top videos are real. The daily charts, watch time, revenue, audience and traffic are preview data until the server starts recording them.
       </PreviewNotice>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <GradientTile icon={Eye} label="Total Views" value={formatCount(stats.views)} growth={demo.growth.views} from="#0b4a8f" to="#0a2a52" border="#1e6fd0">
           <Sparkbars values={sparkline("views")} color="#60a5fa" className="absolute bottom-3 right-3" />
         </GradientTile>
-        <GradientTile icon={Users} label="Subscribers" value={formatCount(demo.subscribers)} growth={demo.growth.subscribers} from="#4c1d95" to="#2a0f57" border="#7c3aed">
+        <GradientTile icon={Users} label="Subscribers" value={formatCount(stats.subscribers)} growth={demo.growth.subscribers} from="#4c1d95" to="#2a0f57" border="#7c3aed">
           <Sparkbars values={sparkline("subscribers")} color="#c084fc" className="absolute bottom-3 right-3" />
         </GradientTile>
-        <GradientTile icon={ThumbsUp} label="Likes" value={formatCount(demo.likes)} growth={demo.growth.likes} from="#831843" to="#4a0d24" border="#db2777">
+        <GradientTile icon={ThumbsUp} label="Likes" value={formatCount(stats.likes)} growth={demo.growth.likes} from="#831843" to="#4a0d24" border="#db2777">
           <Sparkbars values={sparkline("views")} color="#f472b6" className="absolute bottom-3 right-3" />
         </GradientTile>
-        <GradientTile icon={MessageSquare} label="Comments" value={formatCount(demo.comments)} growth={demo.growth.comments} from="#92400e" to="#4a2306" border="#d97706">
+        <GradientTile icon={MessageSquare} label="Comments" value={formatCount(stats.comments)} growth={demo.growth.comments} from="#92400e" to="#4a2306" border="#d97706">
           <Sparkbars values={sparkline("watch")} color="#fbbf24" className="absolute bottom-3 right-3" />
         </GradientTile>
       </div>

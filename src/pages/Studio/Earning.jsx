@@ -15,7 +15,6 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { toast } from "react-toastify";
 
 import { BarChart } from "../../components/Charts/Charts";
 import { Card, GhostButton, PageHeader, PreviewNotice, SectionHeader, Spinner } from "../../components/ui/ui";
@@ -25,6 +24,7 @@ import { useFetch } from "../../hooks/useFetch";
 import { formatCount, formatMoney } from "../../utils/format";
 import { demoChannel, demoEarning, demoSeries, demoVideoEarning } from "../../utils/demo";
 import { GradientTile, RangeSelect, VideoStatRow } from "./shared";
+import { toast } from "../../utils/alerts";
 
 const MIN_PAYOUT = 50;
 
@@ -52,8 +52,8 @@ const Requirement = ({ icon: Icon, color, target, label, current }) => {
 const Earning = () => {
   const { user } = useAuth();
   const [days, setDays] = useState(30);
-  const { data: stats, loading } = useFetch("/api/studio/videos/stats", undefined, studioApi);
-  const { data: list } = useFetch("/api/studio/videos", { status: "active", limit: 100 }, studioApi);
+  const { data: stats, loading } = useFetch("/api/studio/stats", undefined, studioApi);
+  const { data: list } = useFetch("/api/studio/videos", { visibility: "public", sort: "views", limit: 100 }, studioApi);
 
   const channel = demoChannel(user.id);
   const earning = demoEarning(user.id);
@@ -71,11 +71,11 @@ const Earning = () => {
   if (loading || !stats) return <Spinner className="min-h-[60vh]" />;
 
   const requirements = [
-    { icon: Users, color: "#f87171", target: 5000, label: "Subscribers", current: channel.subscribers },
+    { icon: Users, color: "#f87171", target: 5000, label: "Subscribers", current: stats.subscribers },
     { icon: Eye, color: "#38bdf8", target: 200000, label: "Video Views", current: stats.views },
     { icon: Clock, color: "#a78bfa", target: 3000, label: "Watch Hours", current: Math.round(channel.watchHours / 50) },
-    { icon: ThumbsUp, color: "#fb7185", target: 2000, label: "Likes", current: channel.likes },
-    { icon: MessageSquareText, color: "#fbbf24", target: 500, label: "Comments", current: channel.comments },
+    { icon: ThumbsUp, color: "#fb7185", target: 2000, label: "Likes", current: stats.likes },
+    { icon: MessageSquareText, color: "#fbbf24", target: 500, label: "Comments", current: stats.comments },
   ];
   const eligible = requirements.every((item) => item.current >= item.target);
   const periodTotal = daily.reduce((sum, d) => sum + d.value, 0);

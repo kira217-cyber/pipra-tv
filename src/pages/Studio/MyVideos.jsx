@@ -1,58 +1,63 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
-  BadgeCheck,
   BarChart3,
-  ChevronRight,
-  Clock,
+  CalendarClock,
   CloudUpload,
-  EllipsisVertical,
-  Filter,
   Globe,
+  Link2,
   ListFilter,
+  Lock,
   MessageSquare,
   Pencil,
   Search,
   Share2,
+  ShieldAlert,
   ThumbsUp,
   Trash2,
-  XCircle,
+  Zap,
 } from "lucide-react";
-import { toast } from "react-toastify";
 
-import { Avatar, Card, EmptyState, GhostButton, Spinner } from "../../components/ui/ui";
+import { Card, EmptyState, GhostButton, Spinner } from "../../components/ui/ui";
 import { apiError, studioApi } from "../../api/studioApi";
-import { useAuth } from "../../context/AuthContext";
-import { useFetch } from "../../hooks/useFetch";
-import { creatorHandle } from "../../utils/menu";
-import { VIDEO_CATEGORIES } from "../../utils/categories";
-import { formatCount, IMG, mediaUrl, timeAgo } from "../../utils/format";
-import { demoChannel, demoVideoEngagement } from "../../utils/demo";
+import { formatCount, fullDate, viewsText } from "../../utils/format";
+import { toast } from "../../utils/alerts";
 
 const PAGE_SIZE = 20;
 
-// The server's review states, shown with the design's tab look.
 const TABS = [
   { label: "All", value: "" },
-  { label: "Public", value: "active" },
-  { label: "In Review", value: "pending" },
-  { label: "Rejected", value: "rejected" },
+  { label: "Public", value: "public" },
+  { label: "Unlisted", value: "unlisted" },
+  { label: "Private", value: "private" },
+  { label: "Scheduled", value: "scheduled" },
+];
+
+const TYPES = [
+  { label: "All", value: "" },
+  { label: "Videos", value: "videos" },
+  { label: "Shorts", value: "shorts" },
 ];
 
 const SORTS = [
-  { label: "Latest", value: "latest" },
+  { label: "Newest", value: "newest" },
   { label: "Oldest", value: "oldest" },
   { label: "Most viewed", value: "views" },
+  { label: "Most liked", value: "likes" },
 ];
 
-const STATUS = {
-  active: { label: "Public", icon: Globe, className: "bg-[#22c55e]/15 text-[#4ade80]" },
-  pending: { label: "In Review", icon: Clock, className: "bg-[#2f86e6]/15 text-[#60a5fa]" },
-  rejected: { label: "Rejected", icon: XCircle, className: "bg-live/15 text-[#f87171]" },
-};
+const isScheduled = (video) => new Date(video.publishedAt) > new Date();
 
-export const StatusPill = ({ status }) => {
-  const meta = STATUS[status] || STATUS.pending;
+export const VisibilityPill = ({ video }) => {
+  const meta = video.status === "removed"
+    ? { label: "Removed", icon: ShieldAlert, className: "bg-live/15 text-[#f87171]" }
+    : isScheduled(video)
+      ? { label: "Scheduled", icon: CalendarClock, className: "bg-[#a855f7]/15 text-[#c084fc]" }
+      : {
+          public: { label: "Public", icon: Globe, className: "bg-[#22c55e]/15 text-[#4ade80]" },
+          unlisted: { label: "Unlisted", icon: Link2, className: "bg-[#2f86e6]/15 text-[#60a5fa]" },
+          private: { label: "Private", icon: Lock, className: "bg-white/10 text-slate-300" },
+        }[video.visibility] || { label: video.visibility, icon: Globe, className: "bg-white/10" };
   const Icon = meta.icon;
   return (
     <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${meta.className}`}>
@@ -78,39 +83,28 @@ const ActionButton = ({ icon: Icon, label, onClick, danger }) => (
 const ConfirmDelete = ({ video, busy, onCancel, onConfirm }) => (
   <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-4 sm:items-center">
     <Card className="w-full max-w-sm p-5">
-      <p className="text-lg font-bold">Delete this video?</p>
-      <p className="mt-2 text-sm text-muted">
-        “{video.title}” will be removed permanently, including its video file. This can't be undone.
-      </p>
+      <p className="text-lg font-bold">Delete this video forever?</p>
+      <p className="mt-2 text-sm text-muted">“{video.title}” and its views, likes and comments will be deleted. This can't be undone.</p>
       <div className="mt-5 flex gap-3">
         <GhostButton onClick={onCancel} className="flex-1" disabled={busy}>
           Cancel
         </GhostButton>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={busy}
-          className="flex-1 cursor-pointer rounded-xl bg-live px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
-        >
-          {busy ? "Deleting..." : "Delete"}
+        <button type="button" onClick={onConfirm} disabled={busy} className="flex-1 cursor-pointer rounded-xl bg-live px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+          {busy ? "Deleting..." : "Delete forever"}
         </button>
       </div>
     </Card>
   </div>
 );
 
+// Channel content (YouTube Studio → Content): every upload, filterable.
 const MyVideos = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: stats } = useFetch("/api/studio/videos/stats", undefined, studioApi);
-
-  const [status, setStatus] = useState("");
+  const [visibility, setVisibility] = useState("");
+  const [type, setType] = useState("");
+  const [sort, setSort] = useState("newest");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("latest");
-  const [category, setCategory] = useState("");
-  const [showFilter, setShowFilter] = useState(false);
-
   const [list, setList] = useState({ key: null, videos: [], page: 1, totalPages: 1, total: 0 });
   const [loadingMore, setLoadingMore] = useState(false);
   const [toDelete, setToDelete] = useState(null);
@@ -121,60 +115,43 @@ const MyVideos = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const listKey = `${status}|${query}`;
+  const params = { visibility: visibility || undefined, type: type || undefined, sort, search: query || undefined, limit: PAGE_SIZE };
+  const listKey = JSON.stringify(params);
 
   useEffect(() => {
     let cancelled = false;
     studioApi
-      .get("/api/studio/videos", { params: { status: status || undefined, search: query || undefined, limit: PAGE_SIZE, page: 1 } })
+      .get("/api/studio/videos", { params: { ...JSON.parse(listKey), page: 1 } })
       .then(({ data }) => {
-        if (cancelled) return;
-        setList({
-          key: listKey,
-          videos: data?.data?.videos || [],
-          page: 1,
-          totalPages: data?.data?.totalPages || 1,
-          total: data?.data?.total || 0,
-        });
+        if (!cancelled) setList({ key: listKey, videos: data.data.videos, page: 1, totalPages: data.data.totalPages, total: data.data.total });
       })
       .catch((error) => {
-        if (!cancelled) {
-          toast.error(apiError(error, "Couldn't load your videos"));
-          setList({ key: listKey, videos: [], page: 1, totalPages: 1, total: 0 });
-        }
+        if (cancelled) return;
+        toast.error(apiError(error, "Couldn't load your videos"));
+        setList({ key: listKey, videos: [], page: 1, totalPages: 1, total: 0 });
       });
     return () => {
       cancelled = true;
     };
-  }, [status, query, listKey]);
+  }, [listKey]);
 
   const loadMore = async () => {
     setLoadingMore(true);
     try {
       const page = list.page + 1;
-      const { data } = await studioApi.get("/api/studio/videos", {
-        params: { status: status || undefined, search: query || undefined, limit: PAGE_SIZE, page },
-      });
-      setList((previous) => ({ ...previous, videos: [...previous.videos, ...(data?.data?.videos || [])], page }));
+      const { data } = await studioApi.get("/api/studio/videos", { params: { ...params, page } });
+      setList((previous) => ({ ...previous, videos: [...previous.videos, ...data.data.videos], page }));
     } finally {
       setLoadingMore(false);
     }
   };
 
-  const shown = useMemo(() => {
-    const filtered = category ? list.videos.filter((video) => video.category === category) : list.videos;
-    const sorted = [...filtered];
-    if (sort === "oldest") sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    if (sort === "views") sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
-    return sorted;
-  }, [list.videos, category, sort]);
-
   const share = async (video) => {
-    const url = `${window.location.origin}/watch/${video.id}`;
-    if (video.status !== "active") {
-      toast.info("This video isn't public yet — it can be shared once it's approved.");
+    if (video.visibility === "private" || isScheduled(video)) {
+      toast.info("Only public or unlisted videos can be shared.");
       return;
     }
+    const url = `${window.location.origin}/watch/${video.id}`;
     try {
       if (navigator.share) await navigator.share({ title: video.title, url });
       else {
@@ -190,11 +167,7 @@ const MyVideos = () => {
     setDeleting(true);
     try {
       await studioApi.delete(`/api/studio/videos/${toDelete.id}`);
-      setList((previous) => ({
-        ...previous,
-        videos: previous.videos.filter((video) => video.id !== toDelete.id),
-        total: Math.max(0, previous.total - 1),
-      }));
+      setList((previous) => ({ ...previous, videos: previous.videos.filter((v) => v.id !== toDelete.id), total: previous.total - 1 }));
       toast.success("Video deleted");
       setToDelete(null);
     } catch (error) {
@@ -204,52 +177,19 @@ const MyVideos = () => {
     }
   };
 
-  const demo = demoChannel(user.id);
-
   return (
     <div>
-      {/* Creator header */}
-      <div className="flex flex-wrap items-center gap-4">
-        <Link to={`/channel/${user.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar src={mediaUrl(user.channel?.logo, IMG.avatar)} name={user.channel?.name || user.fullName} size="h-16 w-16 sm:h-20 sm:w-20" />
-          <span className="min-w-0">
-            <span className="flex items-center gap-1.5 text-xl font-bold sm:text-2xl">
-              <span className="truncate">{user.channel?.name || user.fullName}</span>
-              <BadgeCheck className="h-5 w-5 shrink-0 fill-[#2f86e6] text-white" />
-            </span>
-            <span className="block text-sm text-muted">{creatorHandle(user)}</span>
-            <span className="block text-sm text-slate-300">Content Creator</span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
-        </Link>
-
-        <div className="grid w-full grid-cols-3 divide-x divide-line rounded-2xl border border-line bg-card py-3 text-center sm:w-auto sm:min-w-[22rem]">
-          <div className="px-3">
-            <p className="text-lg font-bold">{stats ? formatCount(stats.total) : "–"}</p>
-            <p className="text-xs text-muted">Videos</p>
-          </div>
-          <div className="px-3">
-            <p className="text-lg font-bold">{stats ? formatCount(stats.views) : "–"}</p>
-            <p className="text-xs text-muted">Total Views</p>
-          </div>
-          <div className="px-3" title="Preview — subscriptions aren't tracked yet">
-            <p className="text-lg font-bold">{formatCount(demo.subscribers)}</p>
-            <p className="text-xs text-muted">Subscribers*</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">All Videos</h1>
-          <p className="mt-1 text-sm text-muted sm:text-base">Manage and update your uploaded videos</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">Channel content</h1>
+          <p className="mt-1 text-sm text-muted">{list.key === listKey ? `${list.total} ${list.total === 1 ? "upload" : "uploads"}` : "Loading…"}</p>
         </div>
         <button
           type="button"
           onClick={() => navigate("/studio/upload")}
           className="flex cursor-pointer items-center gap-2 rounded-xl bg-live px-5 py-3 font-semibold shadow-lg shadow-live/25 hover:brightness-110"
         >
-          <CloudUpload className="h-5 w-5" /> Upload Video
+          <CloudUpload className="h-5 w-5" /> Upload
         </button>
       </div>
 
@@ -258,9 +198,9 @@ const MyVideos = () => {
           <button
             key={tab.value}
             type="button"
-            onClick={() => setStatus(tab.value)}
-            className={`shrink-0 cursor-pointer rounded-xl px-5 py-2.5 text-sm font-medium transition ${
-              status === tab.value ? "bg-live text-white" : "border border-line bg-card-2 text-slate-200 hover:bg-white/10"
+            onClick={() => setVisibility(tab.value)}
+            className={`shrink-0 cursor-pointer rounded-xl px-4 py-2 text-sm font-medium transition ${
+              visibility === tab.value ? "bg-white text-black" : "border border-line bg-card-2 text-slate-200 hover:bg-white/10"
             }`}
           >
             {tab.label}
@@ -268,32 +208,26 @@ const MyVideos = () => {
         ))}
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <label className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-card px-4">
+      <div className="mt-3 flex flex-wrap gap-2">
+        <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-line bg-card px-3">
           <Search className="h-5 w-5 shrink-0 text-muted" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search your videos..."
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-          />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search your videos" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" />
         </label>
-        <button
-          type="button"
-          onClick={() => setShowFilter((value) => !value)}
-          className={`flex h-12 cursor-pointer items-center gap-2 rounded-xl border px-4 text-sm ${
-            category ? "border-brand/60 bg-brand/15" : "border-line bg-card"
-          }`}
-        >
-          <Filter className="h-4 w-4" /> <span className="hidden sm:inline">Filter</span>
-        </button>
-        <label className="flex h-12 items-center gap-2 rounded-xl border border-line bg-card px-3 text-sm">
+        <div className="flex rounded-xl border border-line bg-card p-1">
+          {TYPES.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setType(item.value)}
+              className={`cursor-pointer rounded-lg px-3 text-sm ${type === item.value ? "bg-card-2 font-semibold text-white" : "text-muted"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <label className="flex h-11 items-center gap-2 rounded-xl border border-line bg-card px-3 text-sm">
           <ListFilter className="h-4 w-4 shrink-0" />
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value)}
-            className="cursor-pointer bg-transparent outline-none [color-scheme:dark]"
-          >
+          <select value={sort} onChange={(event) => setSort(event.target.value)} className="cursor-pointer bg-transparent outline-none [color-scheme:dark]">
             {SORTS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -303,74 +237,59 @@ const MyVideos = () => {
         </label>
       </div>
 
-      {showFilter && (
-        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
-          {VIDEO_CATEGORIES.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setCategory(item.value)}
-              className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-medium ${
-                category === item.value ? "bg-brand text-white" : "bg-card-2 text-slate-300"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="mt-4">
         {list.key !== listKey ? (
           <Spinner />
-        ) : shown.length === 0 ? (
-          <EmptyState icon={CloudUpload} title="No videos here" text={query ? "No videos match your search." : "Upload a video to get started."} />
+        ) : list.videos.length === 0 ? (
+          <EmptyState icon={CloudUpload} title="No content here" text={query ? "No videos match your search." : "Upload a video to get started."}>
+            <Link to="/studio/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
+              Upload video
+            </Link>
+          </EmptyState>
         ) : (
           <div className="divide-y divide-line">
-            {shown.map((video) => {
-              const engagement = demoVideoEngagement(video);
-              return (
-                <div key={video.id} className="space-y-3 py-4">
-                  <div className="flex gap-3 sm:gap-4">
-                    <Link
-                      to={video.status === "active" ? `/watch/${video.id}` : `/studio/videos/${video.id}/edit`}
-                      className="relative w-[38%] shrink-0 self-start overflow-hidden rounded-xl border border-line sm:w-56"
-                    >
-                      <img src={mediaUrl(video.thumbnail?.landscape, IMG.card)} alt="" loading="lazy" className="aspect-video w-full object-cover" />
-                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 text-xs font-semibold">{video.duration}</span>
-                    </Link>
+            {list.videos.map((video) => (
+              <div key={video.id} className="space-y-3 py-4">
+                <div className="flex gap-3 sm:gap-4">
+                  <Link to={`/studio/videos/${video.id}/edit`} className="relative w-[38%] shrink-0 self-start overflow-hidden rounded-xl border border-line bg-card-2 sm:w-56">
+                    {video.thumbnail ? (
+                      <img src={video.thumbnail} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+                    ) : (
+                      <div className="aspect-video" />
+                    )}
+                    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 text-xs font-semibold">{video.duration}</span>
+                    {video.isShort && (
+                      <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded bg-live px-1.5 text-[10px] font-bold">
+                        <Zap className="h-3 w-3" /> SHORT
+                      </span>
+                    )}
+                  </Link>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex gap-2">
-                        <p className="line-clamp-2 flex-1 text-sm font-medium sm:text-base">{video.title}</p>
-                        <EllipsisVertical className="h-5 w-5 shrink-0 text-muted" />
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted sm:text-sm">
-                        {formatCount(video.views)} views · {timeAgo(video.createdAt)}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted sm:text-sm">
-                        <span className="flex items-center gap-1">
-                          <ThumbsUp className="h-4 w-4" /> {formatCount(engagement.likes)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="h-4 w-4" /> {formatCount(engagement.comments)}
-                        </span>
-                        <StatusPill status={video.status} />
-                      </div>
-                      {video.status === "rejected" && video.rejectionReason && (
-                        <p className="mt-1.5 text-xs text-[#f87171]">Reason: {video.rejectionReason}</p>
-                      )}
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-medium sm:text-base">{video.title}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted">{video.description || "No description"}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:text-sm">
+                      <VisibilityPill video={video} />
+                      <span>{isScheduled(video) ? `Goes live ${fullDate(video.publishedAt)}` : fullDate(video.publishedAt)}</span>
+                      <span>{viewsText(video.views)}</span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-4 w-4" /> {formatCount(video.likes)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" /> {formatCount(video.commentCount)}
+                      </span>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5 sm:flex sm:gap-2 sm:pl-60">
-                    <ActionButton icon={Pencil} label="Edit" onClick={() => navigate(`/studio/videos/${video.id}/edit`)} />
-                    <ActionButton icon={BarChart3} label="Analytics" onClick={() => navigate("/studio/analytics")} />
-                    <ActionButton icon={Share2} label="Share" onClick={() => share(video)} />
-                    <ActionButton icon={Trash2} label="Delete" danger onClick={() => setToDelete(video)} />
+                    {video.status === "removed" && video.removedReason && <p className="mt-1.5 text-xs text-[#f87171]">Removed: {video.removedReason}</p>}
                   </div>
                 </div>
-              );
-            })}
+                <div className="grid grid-cols-4 gap-1.5 sm:flex sm:gap-2 sm:pl-60">
+                  <ActionButton icon={Pencil} label="Edit" onClick={() => navigate(`/studio/videos/${video.id}/edit`)} />
+                  <ActionButton icon={BarChart3} label="Analytics" onClick={() => navigate("/studio/analytics")} />
+                  <ActionButton icon={Share2} label="Share" onClick={() => share(video)} />
+                  <ActionButton icon={Trash2} label="Delete" danger onClick={() => setToDelete(video)} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -381,13 +300,9 @@ const MyVideos = () => {
             </GhostButton>
           </div>
         )}
-
-        <p className="mt-6 text-xs text-slate-500">* Subscribers, likes and comments are preview figures until those features go live.</p>
       </div>
 
-      {toDelete && (
-        <ConfirmDelete video={toDelete} busy={deleting} onCancel={() => setToDelete(null)} onConfirm={confirmDelete} />
-      )}
+      {toDelete && <ConfirmDelete video={toDelete} busy={deleting} onCancel={() => setToDelete(null)} onConfirm={confirmDelete} />}
     </div>
   );
 };
