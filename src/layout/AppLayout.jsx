@@ -5,6 +5,7 @@ import { FacebookIcon, InstagramIcon, TelegramIcon, TiktokIcon, YoutubeIcon } fr
 import Header from "../components/Header/Header";
 import BottomNav from "../components/BottomNav/BottomNav";
 import NavMenu from "../components/NavMenu/NavMenu";
+import DesktopSidebar, { SIDEBAR_FULL, SIDEBAR_MINI } from "./DesktopSidebar";
 import { Logo, Spinner } from "../components/ui/ui";
 import { getPresenceSocket } from "../hooks/presenceSocket";
 import { useSiteFavicon } from "../hooks/useSiteFavicon";
@@ -111,10 +112,19 @@ const Announcement = () => {
   );
 };
 
+const SIDEBAR_KEY = "pipra_sidebar";
+
 const AppLayout = () => {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Desktop sidebar: full menu or icons only — remembered between visits.
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) !== "mini";
+    } catch {
+      return true;
+    }
+  });
 
   useSiteFavicon();
 
@@ -141,7 +151,14 @@ const AppLayout = () => {
 
   const toggleMenu = () => {
     if (window.matchMedia("(min-width: 1024px)").matches) {
-      setSidebarOpen((value) => !value);
+      setSidebarOpen((value) => {
+        try {
+          localStorage.setItem(SIDEBAR_KEY, value ? "mini" : "full");
+        } catch {
+          // Storage blocked — it just won't be remembered.
+        }
+        return !value;
+      });
     } else {
       setDrawerOpen(true);
     }
@@ -174,14 +191,13 @@ const AppLayout = () => {
         </aside>
       </div>
 
-      {/* Desktop sidebar */}
-      {sidebarOpen && (
-        <aside className="no-scrollbar fixed bottom-0 left-0 top-16 z-30 hidden w-72 overflow-y-auto border-r border-line bg-header px-3 py-4 lg:block">
-          <NavMenu showBrowse />
-        </aside>
-      )}
+      <DesktopSidebar open={sidebarOpen} />
 
-      <div className={`${isShorts ? "lg:pt-16" : "pt-16"} ${sidebarOpen ? "lg:pl-72" : ""}`}>
+      {/* The page moves over with the same easing as the sidebar. */}
+      <div
+        className={`${isShorts ? "lg:pt-16" : "pt-16"} transition-[padding] duration-300 ease-[cubic-bezier(0.2,0,0,1)] lg:pl-[var(--sidebar)]`}
+        style={{ "--sidebar": sidebarOpen ? SIDEBAR_FULL : SIDEBAR_MINI }}
+      >
         {isShorts ? (
           <Suspense fallback={<Spinner className="min-h-[60vh]" />}>
             <Outlet />
