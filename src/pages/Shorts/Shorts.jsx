@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import {
+  AlignLeft,
   ArrowLeft,
   Zap,
   ChevronDown,
@@ -8,19 +10,23 @@ import {
   BadgeCheck,
   EllipsisVertical,
   Heart,
+  Link2,
+  ListPlus,
   MessageCircle,
+  MonitorPlay,
   Music2,
   Play,
   Plus,
-  Repeat2,
   Share2,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 
 import { Spinner } from "../../components/ui/ui";
 import { useFetch } from "../../hooks/useFetch";
 import Comments from "../../components/Comments/Comments";
+import SaveDialog from "../../components/SaveDialog/SaveDialog";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import { reactToVideo } from "../../api/engage";
 import { api } from "../../api/axios";
@@ -33,6 +39,7 @@ import { useWatchPresence } from "../../hooks/useWatchPresence";
 import { channelPath, videoId } from "../../utils/format";
 import { countView } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
+import StudioLink from "../../components/StudioLink/StudioLink";
 
 const TABS = [
   { key: "foryou", label: "For You" },
@@ -52,19 +59,112 @@ const RailButton = ({ icon: Icon, label, active, onClick, fill }) => (
 
 const handleOf = (channel) => `@${channel?.handle || "pipratv"}`;
 
+const clock = (seconds) => {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+// A sheet that slides up over the Shorts feed (a side panel on desktop).
+// It lives outside the feed so its scrolling, wheel and drags never move to
+// the next Short.
+const Sheet = ({ title, onClose, children }) =>
+  createPortal(
+    <div className="fixed inset-0 z-[70]" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+      <div className="absolute inset-0 bg-black/50 lg:bg-black/20" onClick={onClose} />
+      <div className="absolute inset-x-0 bottom-0 flex h-[72dvh] flex-col rounded-t-3xl border-t border-line bg-card shadow-2xl lg:inset-x-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:w-[440px] lg:rounded-2xl lg:border">
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/25 lg:hidden" />
+        <div className="flex shrink-0 items-center justify-between px-4 pb-1 pt-2">
+          <p className="text-base font-bold">{title}</p>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-white/10">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+
+// YouTube-style seek bar: a thin line that thickens under a finger or the
+// mouse and can be dragged left and right to scrub through the Short.
+const SeekBar = ({ videoRef, progress, duration }) => {
+  const [scrub, setScrub] = useState(null); // 0–1 while dragging
+  const bar = useRef(null);
+
+  const fraction = (event) => {
+    const rect = bar.current.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  };
+  const seek = (value) => {
+    const player = videoRef.current;
+    if (player?.duration) player.currentTime = value * player.duration;
+  };
+
+  const shown = scrub ?? progress;
+
+  return (
+    <div
+      ref={bar}
+      role="slider"
+      aria-label="Seek"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(shown * 100)}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const value = fraction(event);
+        setScrub(value);
+        seek(value);
+      }}
+      onPointerMove={(event) => {
+        if (scrub === null) return;
+        const value = fraction(event);
+        setScrub(value);
+        seek(value);
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        setScrub(null);
+      }}
+      onPointerCancel={() => setScrub(null)}
+      className="group absolute inset-x-0 bottom-0 z-20 flex h-6 cursor-pointer touch-none items-end"
+    >
+      {scrub !== null && duration > 0 && (
+        <span className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded-lg bg-black/70 px-3 py-1 text-sm font-semibold tabular-nums text-white">
+          {clock(shown * duration)} / {clock(duration)}
+        </span>
+      )}
+      <div className={`relative w-full bg-white/25 transition-[height] ${scrub !== null ? "h-1.5" : "h-[3px] group-hover:h-1.5"}`}>
+        <div className="h-full bg-brand" style={{ width: `${shown * 100}%` }} />
+        <span
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand shadow transition-opacity ${scrub !== null ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          style={{ left: `${shown * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const ShortItem = ({ video, muted, onToggleMute }) => {
   const id = videoId(video);
+  const navigate = useNavigate();
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const counted = useRef(false);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const { channel: myChannel } = useAuth();
   const requireSignIn = useRequireSignIn();
   const [viewer, setViewer] = useState(null); // loaded when this short first plays
   const [likes, setLikes] = useState(video.likes || 0);
   const [commentCount, setCommentCount] = useState(video.commentCount || 0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const shortUrl = `${window.location.origin}/shorts?v=${id}`;
   const liked = viewer?.reaction === 1;
   const isMine = myChannel && myChannel.id === video.channel?.id;
 
@@ -119,18 +219,30 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
     else player.pause();
   };
 
-  const share = async () => {
-    const url = `${window.location.origin}/watch/${id}`;
+  const copyLink = async () => {
     try {
-      if (navigator.share) await navigator.share({ title: video.title, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copied");
-      }
+      await navigator.clipboard.writeText(shortUrl);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy the link");
+    }
+  };
+
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: video.title, url: shortUrl });
+      else await copyLink();
     } catch {
       // Share sheet dismissed.
     }
   };
+
+  const menuItems = [
+    { label: "Description", icon: AlignLeft, run: () => setDescriptionOpen(true) },
+    { label: "Save to playlist", icon: ListPlus, run: () => requireSignIn("Sign in to save Shorts") && setSaving(true) },
+    { label: "Copy link", icon: Link2, run: copyLink },
+    { label: "Open in player", icon: MonitorPlay, run: () => navigate(`/watch/${id}`) },
+  ];
 
   return (
     <div ref={containerRef} className="relative flex h-full w-full justify-center">
@@ -153,6 +265,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
             setPlaying(true);
           }}
           onPause={() => setPlaying(false)}
+          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || 0)}
           onTimeUpdate={(event) => {
             const { currentTime, duration } = event.currentTarget;
             if (duration) setProgress(currentTime / duration);
@@ -182,9 +295,37 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           >
             {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
           </button>
-          <span className="flex h-9 w-9 items-center justify-center text-white">
-            <EllipsisVertical className="h-5 w-5" />
-          </span>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="More actions"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((value) => !value)}
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white"
+            >
+              <EllipsisVertical className="h-5 w-5" />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-11 z-40 w-52 overflow-hidden rounded-xl border border-line bg-card py-1 shadow-2xl">
+                  {menuItems.map(({ label, icon: Icon, run }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        run();
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-white hover:bg-white/10"
+                    >
+                      <Icon className="h-[18px] w-[18px]" /> {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Right-hand action rail */}
@@ -208,7 +349,6 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           <RailButton icon={Heart} label={likes ? formatCount(likes) : "Like"} active={liked} onClick={toggleLike} fill />
           <RailButton icon={MessageCircle} label={commentCount ? formatCount(commentCount) : "Comment"} fill onClick={() => setCommentsOpen(true)} />
           <RailButton icon={Share2} label="Share" fill onClick={share} />
-          <RailButton icon={Repeat2} label="Remix" onClick={() => toast.info("Remix is coming soon")} />
         </div>
 
         {/* Channel + caption */}
@@ -230,28 +370,48 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           <Link to={`/watch/${id}`} className="mt-1.5 line-clamp-1 block text-[13px] leading-snug text-white/95 lg:line-clamp-2 lg:text-sm">
             {video.title}
           </Link>
-          {video.category && <p className="mt-0.5 truncate text-xs text-white/70">#PipraTV #{video.category} #Shorts</p>}
+          {video.category && <p className="mt-0.5 truncate text-xs text-white/70">#PipraTube #{video.category} #Shorts</p>}
           <p className="mt-1.5 flex items-center gap-1.5 text-xs text-white/80">
             <Music2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Original Sound - {video.channel?.name || "PipraTV"}</span>
+            <span className="truncate">Original Sound - {video.channel?.name || "PipraTube"}</span>
           </p>
         </div>
 
         {commentsOpen && (
-          <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/40" onClick={() => setCommentsOpen(false)}>
-            <div
-              className="max-h-[75%] overflow-y-auto rounded-t-2xl bg-card p-4"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/30" />
-              <Comments videoId={id} creator={video.channel} onCountChange={setCommentCount} />
-            </div>
-          </div>
+          <Sheet title="Comments" onClose={() => setCommentsOpen(false)}>
+            <Comments videoId={id} creator={video.channel} onCountChange={setCommentCount} />
+          </Sheet>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
-          <div className="h-full bg-brand" style={{ width: `${progress * 100}%` }} />
-        </div>
+        {descriptionOpen && (
+          <Sheet title="Description" onClose={() => setDescriptionOpen(false)}>
+            <p className="text-base font-semibold leading-snug">{video.title}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[
+                [formatCount(likes), "Likes"],
+                [formatCount(video.views || 0), "Views"],
+                [new Date(video.publishedAt || video.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }), "Published"],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-xl bg-card-2 py-2.5">
+                  <p className="text-sm font-bold">{value}</p>
+                  <p className="text-xs text-muted">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 whitespace-pre-line text-sm text-slate-300">{video.description || "No description."}</p>
+            <Link to={channelPath(video.channel)} className="mt-4 flex items-center gap-3 rounded-xl bg-card-2 p-3">
+              <span className="h-10 w-10 overflow-hidden rounded-full bg-black">{video.channel?.avatar && <img src={video.channel.avatar} alt="" className="h-full w-full object-cover" />}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">{video.channel?.name}</span>
+                <span className="block text-xs text-muted">{handleOf(video.channel)}</span>
+              </span>
+            </Link>
+          </Sheet>
+        )}
+
+        {saving && <SaveDialog videoId={id} onClose={() => setSaving(false)} />}
+
+        <SeekBar videoRef={videoRef} progress={progress} duration={duration} />
       </div>
     </div>
   );
@@ -411,9 +571,9 @@ const Shorts = () => {
             <Zap className="h-12 w-12 text-brand" />
             <p className="mt-3 text-lg font-semibold">No Shorts yet</p>
             <p className="mt-1 max-w-sm text-sm text-muted">Upload a video of 2 minutes or less and it shows up here.</p>
-            <Link to="/studio/upload" className="bg-brand-gradient mt-5 rounded-xl px-5 py-2.5 text-sm font-semibold">
+            <StudioLink to="/upload" className="bg-brand-gradient mt-5 rounded-xl px-5 py-2.5 text-sm font-semibold">
               Upload a Short
-            </Link>
+            </StudioLink>
           </div>
         ) : (
           <>
