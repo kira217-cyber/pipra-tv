@@ -18,6 +18,7 @@ import { categoryLabel } from "../../utils/categories";
 import { channelPath, formatCount, fullDate, timeAgo, videoId, viewsText } from "../../utils/format";
 import { countShare, countView } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
+import StudioLink from "../../components/StudioLink/StudioLink";
 
 const Pill = ({ onClick, children, className = "" }) => (
   <button
@@ -133,9 +134,9 @@ const WatchBody = ({ video, viewer }) => {
             </span>
           </Link>
           {isMine ? (
-            <Link to={`/studio/videos/${id}/edit`} className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
+            <StudioLink to={`/videos/${id}/edit`} className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
               Edit video
-            </Link>
+            </StudioLink>
           ) : (
             <SubscribeButton key={channel?.id} channelId={channel?.id} initial={viewer} onCount={setSubscribers} />
           )}

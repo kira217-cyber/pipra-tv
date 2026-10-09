@@ -9,6 +9,7 @@ import { useFetch } from "../../hooks/useFetch";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import { categoryLabel } from "../../utils/categories";
 import { formatCount, fullDate, viewsText } from "../../utils/format";
+import StudioLink from "../../components/StudioLink/StudioLink";
 
 const TABS = ["Home", "Videos", "Shorts", "Playlists", "About"];
 const SORTS = [
@@ -128,12 +129,12 @@ const Channel = ({ handle }) => {
           <div className="mt-3 flex flex-wrap gap-2">
             {isMine ? (
               <>
-                <Link to="/studio/customize" className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
+                <StudioLink to="/customize" className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
                   Customize channel
-                </Link>
-                <Link to="/studio/videos" className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
+                </StudioLink>
+                <StudioLink to="/videos" className="rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
                   Manage videos
-                </Link>
+                </StudioLink>
               </>
             ) : (
               <SubscribeButton key={channel.id} channelId={channel.id} initial={data?.viewer} onCount={setSubscribers} />
@@ -162,9 +163,9 @@ const Channel = ({ handle }) => {
           (total === 0 ? (
             <EmptyState icon={Clapperboard} title={isMine ? "Upload your first video" : "This channel doesn't have any content"} text={isMine ? "Your videos and Shorts will appear here." : undefined}>
               {isMine && (
-                <Link to="/studio/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
+                <StudioLink to="/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
                   Upload video
-                </Link>
+                </StudioLink>
               )}
             </EmptyState>
           ) : (

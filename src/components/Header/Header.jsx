@@ -5,6 +5,7 @@ import { ArrowLeft, Bell, CloudUpload, Menu, Search } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import Notifications from "./Notifications";
 import { Avatar, Logo } from "../ui/ui";
+import StudioLink from "../StudioLink/StudioLink";
 
 const SearchBox = ({ autoFocus, onDone }) => {
   const navigate = useNavigate();
@@ -96,18 +97,18 @@ const Header = ({ onMenu }) => {
           LIVE
         </Link>
 
-        <Link
-          to="/studio/upload"
+        <StudioLink
+          to="/upload"
           className="bg-upload-gradient ml-1 hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white lg:flex"
         >
           <CloudUpload className="h-5 w-5" />
           Upload
-        </Link>
+        </StudioLink>
 
         {user ? (
-          <Link to={channel ? "/studio" : "/studio/profile"} className="ml-1 hidden lg:block" aria-label="Your account">
+          <StudioLink to={channel ? "/" : "/profile"} className="ml-1 hidden lg:block" aria-label="Your account">
             <Avatar src={channel?.avatar || user.avatar} name={channel?.name || user.name} size="h-9 w-9" />
-          </Link>
+          </StudioLink>
         ) : (
           <Link
             to="/login"

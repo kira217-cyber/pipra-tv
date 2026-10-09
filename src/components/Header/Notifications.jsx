@@ -6,6 +6,7 @@ import { Avatar, Spinner } from "../ui/ui";
 import { notifications as fetchNotifications, readAll, unreadCount } from "../../api/engage";
 import { useAuth } from "../../context/AuthContext";
 import { timeAgo } from "../../utils/format";
+import { openStudio } from "../../utils/handoff";
 
 const POLL_MS = 60 * 1000;
 
@@ -29,7 +30,6 @@ const describe = (n) => {
 
 const linkFor = (n) => {
   if (n.video?.id) return `/watch/${n.video.id}`;
-  if (n.type === "subscriber") return "/studio";
   if (n.channel?.handle) return `/@${n.channel.handle}`;
   return "/";
 };
@@ -118,7 +118,14 @@ const Notifications = () => {
                 <Link
                   key={n.id}
                   to={linkFor(n)}
-                  onClick={() => setOpen(false)}
+                  onClick={(event) => {
+                    setOpen(false);
+                    // A new subscriber is news for Studio, not a page here.
+                    if (n.type === "subscriber" && !n.video?.id) {
+                      event.preventDefault();
+                      openStudio("/");
+                    }
+                  }}
                   className={`flex gap-3 border-b border-line px-4 py-3 last:border-0 hover:bg-white/5 ${n.read ? "" : "bg-brand/5"}`}
                 >
                   <span className="relative mt-0.5 shrink-0">

@@ -5,12 +5,13 @@ import { ArrowUpRight, CloudUpload, EllipsisVertical } from "lucide-react";
 import FeedCard from "../../components/FeedCard/FeedCard";
 import LivePreviewCard from "../../components/LivePreviewCard/LivePreviewCard";
 import ChannelCircle, { ChannelRail, railItemClass } from "../../components/ChannelCircle/ChannelCircle";
-import { EmptyState, Logo, SectionHeader, Spinner } from "../../components/ui/ui";
+import { EmptyState, LogoMark, SectionHeader, Spinner } from "../../components/ui/ui";
 import { api } from "../../api/axios";
 import { VideoRail } from "../../components/VideoCard/VideoCard";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
 import { useFetch } from "../../hooks/useFetch";
 import { IMG, channelPath, mediaUrl, videoId, viewsText } from "../../utils/format";
+import StudioLink from "../../components/StudioLink/StudioLink";
 
 const PAGE_SIZE = 12;
 
@@ -30,7 +31,7 @@ const SponsoredCard = ({ ad }) => {
     try {
       return new URL(ad.url).hostname.replace(/^www\./, "");
     } catch {
-      return "PipraTV";
+      return "PipraTube";
     }
   })();
   // Links into the site (e.g. "/live-tv/…") stay in this tab.
@@ -50,7 +51,7 @@ const SponsoredCard = ({ ad }) => {
       </Wrapper>
       <div className="mt-3 flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black p-1">
-          <Logo className="h-full" />
+          <LogoMark className="h-full" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-white">{ad.title || "Special offer — tap to learn more"}</p>
@@ -291,9 +292,9 @@ const Home = () => {
       {feed.length === 0 && shorts.length === 0 ? (
         <div className="sm:col-span-2 lg:col-span-3">
           <EmptyState icon={CloudUpload} title="No videos yet" text="Be the first to upload — create your channel and share a video or a Short.">
-            <Link to="/studio/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
+            <StudioLink to="/upload" className="bg-brand-gradient rounded-xl px-5 py-2.5 text-sm font-semibold">
               Upload a video
-            </Link>
+            </StudioLink>
           </EmptyState>
         </div>
       ) : (

@@ -3,7 +3,7 @@
 The new version of the Pipra-TV website. It's one responsive React app for desktop and mobile browsers, built from the mobile designs in `../../site-structure/`. Viewers and creators use the same app:
 
 - **Viewer pages:** Home, Live TV (with categories and a watch page), Videos, Watch, Shorts, Channel, Channels, Search.
-- **Creator pages** (sign in with a Studio account): Dashboard, All Videos, Upload/Edit, Analytics, Earning, Verified Identity, Account & Profile.
+- **Creator pages** moved to the separate Studio app (`../studio`, studio.pipratube.com). Links here open it already signed in.
 
 It talks to the same `server/` API as the old site. The old `client/` and `studio/` apps are left untouched.
 

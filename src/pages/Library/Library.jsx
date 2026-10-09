@@ -11,6 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { channelPath, timeAgo, viewsText } from "../../utils/format";
 import { toast, confirmDialog } from "../../utils/alerts";
+import StudioLink from "../../components/StudioLink/StudioLink";
 
 const Rail = ({ videos }) => (
   <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -58,9 +59,9 @@ export const You = () => {
                 </Link>
               </>
             ) : (
-              <Link to="/channel/create" className="text-[#3ea6ff] hover:underline">
+              <StudioLink to="/channel/create" className="text-[#3ea6ff] hover:underline">
                 Create a channel
-              </Link>
+              </StudioLink>
             )}
           </p>
         </div>

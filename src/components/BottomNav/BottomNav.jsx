@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "react-router";
 import { House, Plus, Tv, UserRound } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
+import StudioLink from "../StudioLink/StudioLink";
 
 // Shorts mark — a play triangle in a rounded "S" frame.
 const ShortsIcon = ({ className }) => (
@@ -43,7 +44,7 @@ const BottomNav = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const onShorts = pathname.startsWith("/shorts");
-  const inAccount = /^\/(you|feed|playlist|studio|login|register|channel\/create)/.test(pathname) && pathname !== "/studio/upload";
+  const inAccount = /^\/(you|feed|playlist|login|register)/.test(pathname);
 
   return (
     <nav className={`fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden ${onShorts ? "bg-black" : ""}`}>
@@ -56,16 +57,16 @@ const BottomNav = () => {
         <Tab to="/live-tv" label="Live TV" icon={Tv} />
 
         <div className="flex min-w-0 flex-1 flex-col items-center pb-1">
-          <Link
-            to="/studio/upload"
+          <StudioLink
+            to="/upload"
             aria-label="Upload"
             className="-mt-7 flex h-[60px] w-[60px] items-center justify-center rounded-full border-[3px] border-[#0d1220] bg-gradient-to-br from-[#ff2d8b] via-[#d61fd0] to-[#7c3aed] text-white shadow-[0_0_22px_rgba(214,31,208,0.65)] transition active:scale-95"
           >
             <Plus className="h-8 w-8" strokeWidth={3} />
-          </Link>
+          </StudioLink>
           <span
             className="mt-1 text-[11px] font-semibold uppercase tracking-wide min-[380px]:text-xs"
-            style={{ color: pathname === "/studio/upload" ? ACTIVE : "#fff" }}
+            style={{ color: "#fff" }}
           >
             Upload
           </span>
