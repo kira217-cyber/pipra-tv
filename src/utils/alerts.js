@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 
-// SweetAlert2, themed for PipraTV. `toast` keeps the familiar
+// SweetAlert2, themed for PipraTube. `toast` keeps the familiar
 // toast.success / error / info / warning calls; `confirmDialog` replaces
 // the browser's plain confirm() with a styled one (returns a Promise<boolean>).
 export const MySwal = withReactContent(Swal);

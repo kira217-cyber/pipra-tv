@@ -55,7 +55,7 @@ const Footer = () => {
         </div>
       </div>
       <p className="mt-6 text-xs text-slate-500">
-        © {new Date().getFullYear()} {settings?.siteName || "PipraTV"}. All rights reserved.
+        © {new Date().getFullYear()} {settings?.siteName || "PipraTube"}. All rights reserved.
         {settings?.contactEmail && (
           <>
             {" "}·{" "}

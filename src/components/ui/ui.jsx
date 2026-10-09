@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 import { ChevronRight, Eye, EyeOff, Info, Loader2 } from "lucide-react";
 
-import logo from "../../assets/pipra-tv-logo.png";
+import logo from "../../assets/pipratube-logo.webp";
+import icon from "../../assets/pipratube-icon.png";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
 
 // Small building blocks shared by every page of the new design.
@@ -16,11 +17,18 @@ export const Logo = ({ className = "h-9" }) => {
   return (
     <img
       src={src}
-      alt="PipraTV"
+      alt={settings?.siteName || "PipraTube"}
       draggable={false}
       className={`w-auto select-none object-contain ${className}`}
     />
   );
+};
+
+// Just the ant icon (the site favicon) — for small round spots where the
+// full logo with its wordmark would be unreadable.
+export const LogoMark = ({ className = "h-9" }) => {
+  const { settings } = useSiteSettings();
+  return <img src={settings?.favicon || icon} alt="" draggable={false} className={`w-auto select-none object-contain ${className}`} />;
 };
 
 export const SectionHeader = ({ title, to, action = "See All", className = "" }) => (
@@ -78,15 +86,16 @@ export const Chips = ({ items, value, onChange, className = "" }) => (
 );
 
 // Icon in a rounded, tinted square — the colourful menu/stat icons.
-export const IconTile = ({ icon: Icon, color, size = "h-11 w-11", iconSize = "h-5 w-5", solid = true }) => (
+export const IconTile = ({ icon: Icon, color, gradient, size = "h-11 w-11", iconSize = "h-5 w-5", solid = true }) => (
   <span
-    className={`flex shrink-0 items-center justify-center rounded-xl ${size}`}
-    style={{
-      background: solid ? color : `${color}26`,
-      color: solid ? "#fff" : color,
-    }}
+    className={`flex shrink-0 items-center justify-center rounded-xl ${gradient ? "icon-tile" : ""} ${size}`}
+    style={
+      gradient
+        ? { background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`, color: "#fff", "--tile-glow": `${gradient[1]}aa` }
+        : { background: solid ? color : `${color}26`, color: solid ? "#fff" : color }
+    }
   >
-    <Icon className={iconSize} />
+    <Icon className={`relative z-[1] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] ${iconSize}`} />
   </span>
 );
 

@@ -61,7 +61,7 @@ const Channels = () => {
 
   return (
     <div>
-      <PageHeader title="Channels" subtitle="Discover creators on PipraTV">
+      <PageHeader title="Channels" subtitle="Discover creators on PipraTube">
         <label className="flex h-11 w-full items-center gap-2 rounded-full border border-line bg-card-2 px-4 sm:w-72">
           <Search className="h-4 w-4 text-muted" />
           <input

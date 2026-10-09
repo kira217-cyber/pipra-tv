@@ -7,7 +7,7 @@ import { api } from "../../api/axios";
 import { useViewerStats, formatOnline } from "../../hooks/useViewerStats";
 import { IMG, mediaUrl } from "../../utils/format";
 
-// "PipraTV is live" card on Home: a silent preview of what the channel is
+// "PipraTube is live" card on Home: a silent preview of what the channel is
 // playing right now (scheduled channel), tapping through to Live TV.
 const LivePreviewCard = ({ channel, fallbackImage }) => {
   const videoRef = useRef(null);

@@ -38,10 +38,10 @@ const Login = () => {
   return (
     <AuthShell
       title="Sign in"
-      subtitle="to continue to PipraTV"
+      subtitle="to continue to PipraTube"
       footer={
         <>
-          New to PipraTV?{" "}
+          New to PipraTube?{" "}
           <Link to="/register" state={location.state} className="font-semibold text-brand hover:underline">
             Create an account
           </Link>

@@ -15,7 +15,7 @@ const Search = () => {
   const { data: videos, loading: loadingVideos } = useFetch(q ? "/api/videos" : null, { search: q, limit: 40 });
   const { data: channels } = useFetch(q ? "/api/channels" : null, { search: q, limit: 20 });
 
-  if (!q) return <EmptyState icon={SearchX} title="Search PipraTV" text="Type a video or channel name in the search box." />;
+  if (!q) return <EmptyState icon={SearchX} title="Search PipraTube" text="Type a video or channel name in the search box." />;
 
   const videoList = videos?.videos || [];
   const channelList = channels?.channels || [];

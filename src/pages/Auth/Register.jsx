@@ -36,7 +36,7 @@ const Register = () => {
         ...(method === "email" ? { email: form.email.trim() } : { phone: form.phone.trim() }),
         password: form.password,
       });
-      toast.success("Welcome to PipraTV!");
+      toast.success("Welcome to PipraTube!");
       navigate(target, { replace: true });
     } catch (error) {
       toast.error(apiError(error, "Sign up failed"));
