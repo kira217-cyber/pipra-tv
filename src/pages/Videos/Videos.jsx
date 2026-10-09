@@ -20,7 +20,8 @@ const Videos = () => {
   const { data: random, loading: loadingRandom } = useFetch("/api/videos", {
     ...params,
     sort: "random",
-    limit: 13,
+    // 1 featured + up to 10 in the row; the rest open with "See more".
+    limit: 31,
   });
 
   const [latest, setLatest] = useState({ key: null, videos: [], page: 1, totalPages: 1 });

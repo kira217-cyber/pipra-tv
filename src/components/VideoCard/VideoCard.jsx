@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { EllipsisVertical, Play } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, EllipsisVertical, Play } from "lucide-react";
 
 import { Avatar } from "../ui/ui";
 import VideoPreview from "../VideoPreview/VideoPreview";
@@ -35,18 +35,109 @@ export const VideoCard = ({ video, showChannel = true, className = "" }) => (
 );
 
 // A horizontally scrolling row of cards — swipe on mobile, scroll on desktop.
-export const VideoRail = ({ videos, showChannel = true }) => (
-  <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-    {videos.map((video) => (
-      <VideoCard
-        key={videoId(video)}
-        video={video}
-        showChannel={showChannel}
-        className="w-[44%] shrink-0 snap-start sm:w-[31%] lg:w-[23.5%] xl:w-[18.8%]"
-      />
-    ))}
-  </div>
-);
+// Swipe on phones; on desktop, arrow buttons (shown only when there's more
+// to that side) and click-and-drag. With more than `limit` videos a
+// "See more" button opens them all as a grid below.
+export const VideoRail = ({ videos, showChannel = true, limit = 10 }) => {
+  const rail = useRef(null);
+  const drag = useRef(null);
+  const [edges, setEdges] = useState({ start: true, end: true });
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? videos : videos.slice(0, limit);
+
+  const measure = useCallback(() => {
+    const el = rail.current;
+    if (!el) return;
+    setEdges({ start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, shown.length]);
+
+  const scrollBy = (direction) => {
+    const el = rail.current;
+    if (el) el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+
+  if (expanded) {
+    return (
+      <div>
+        <VideoGrid videos={videos} showChannel={showChannel} />
+        <div className="mt-5 flex justify-center">
+          <button type="button" onClick={() => setExpanded(false)} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-card-2 px-5 py-2 text-sm font-semibold hover:bg-white/10">
+            Show less <ChevronUp className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const arrow = "absolute top-[calc(50%-2.5rem)] z-10 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/75 text-white shadow-xl backdrop-blur transition hover:bg-black sm:flex";
+
+  return (
+    <div>
+      <div className="relative">
+        <div
+          ref={rail}
+          onScroll={measure}
+          // Links and images start a native drag that would swallow ours.
+          onDragStart={(event) => event.preventDefault()}
+          // Mouse drag to scroll (touch already swipes natively).
+          onPointerDown={(event) => {
+            if (event.pointerType !== "mouse" || event.button !== 0) return;
+            drag.current = { x: event.clientX, left: rail.current.scrollLeft, moved: false };
+          }}
+          onPointerMove={(event) => {
+            const d = drag.current;
+            if (!d) return;
+            const dx = event.clientX - d.x;
+            if (Math.abs(dx) > 5) d.moved = true;
+            if (d.moved) rail.current.scrollLeft = d.left - dx;
+          }}
+          onPointerUp={() => setTimeout(() => (drag.current = null), 0)}
+          onPointerLeave={() => (drag.current = null)}
+          onClickCapture={(event) => {
+            // A drag that ends on a card shouldn't open it.
+            if (drag.current?.moved) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          className="no-scrollbar -mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 sm:mx-0 sm:scroll-px-0 sm:px-0"
+        >
+          {shown.map((video) => (
+            <VideoCard
+              key={videoId(video)}
+              video={video}
+              showChannel={showChannel}
+              className="w-[44%] shrink-0 snap-start sm:w-[31%] lg:w-[23.5%] xl:w-[18.8%]"
+            />
+          ))}
+        </div>
+        {!edges.start && (
+          <button type="button" aria-label="Scroll left" onClick={() => scrollBy(-1)} className={`${arrow} -left-3`}>
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+        )}
+        {!edges.end && (
+          <button type="button" aria-label="Scroll right" onClick={() => scrollBy(1)} className={`${arrow} -right-3`}>
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        )}
+      </div>
+      {videos.length > limit && (
+        <div className="mt-4 flex justify-center">
+          <button type="button" onClick={() => setExpanded(true)} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-card-2 px-5 py-2 text-sm font-semibold hover:bg-white/10">
+            See more ({videos.length - limit}) <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const VideoGrid = ({ videos, showChannel = true }) => (
   <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

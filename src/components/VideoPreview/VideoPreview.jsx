@@ -128,6 +128,19 @@ const VideoPreview = ({ id, src, poster, alt, autoplayInView = false, eager = fa
         <img
           src={poster}
           alt={alt}
+          // A failed poster gets one retry (the API may have been restarting);
+          // after that the grey card shows instead of the alt text.
+          onError={(event) => {
+            const img = event.currentTarget;
+            if (img.dataset.retried) {
+              img.style.visibility = "hidden";
+              return;
+            }
+            img.dataset.retried = "1";
+            window.setTimeout(() => {
+              img.src = `${poster}${poster.includes("?") ? "&" : "?"}retry=1`;
+            }, 1500);
+          }}
           loading={eager ? "eager" : "lazy"}
           decoding="async"
           draggable={false}
