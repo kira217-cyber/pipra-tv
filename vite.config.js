@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      port: 5175,
+      port: 5173,
       // In dev the browser only talks to Vite (see src/api/axios.js).
       proxy: {
         "/api": { target, changeOrigin: true },
