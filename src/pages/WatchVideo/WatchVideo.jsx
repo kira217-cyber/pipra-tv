@@ -10,6 +10,7 @@ import HiddenNotice from "../../components/VideoMenu/HiddenNotice";
 import { clearQueue, hiddenReason, removeFromQueue, useVideoPrefs } from "../../utils/videoPrefs";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import SaveDialog from "../../components/SaveDialog/SaveDialog";
+import ShareDialog from "../../components/ShareDialog/ShareDialog";
 import Comments from "../../components/Comments/Comments";
 import { Avatar, SectionHeader, Spinner } from "../../components/ui/ui";
 import { reactToVideo } from "../../api/engage";
@@ -144,6 +145,7 @@ const WatchBody = ({ video, viewer }) => {
   const [commentCount, setCommentCount] = useState(video.commentCount || 0);
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
   const channel = video.channel;
@@ -187,19 +189,7 @@ const WatchBody = ({ video, viewer }) => {
     }
   };
 
-  const share = async () => {
-    const url = `${window.location.origin}/watch/${id}`;
-    try {
-      if (navigator.share) await navigator.share({ title: video.title, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copied");
-      }
-      countShare(id);
-    } catch {
-      // Share sheet dismissed.
-    }
-  };
+  const share = () => setSharing(true);
 
   return (
     // One grid, three areas — the player never moves in the DOM, so
@@ -400,6 +390,7 @@ const WatchBody = ({ video, viewer }) => {
       )}
 
       {saving && <SaveDialog videoId={id} onClose={() => setSaving(false)} />}
+      {sharing && <ShareDialog url={`${window.location.origin}/watch/${id}`} title={video.title} onClose={() => setSharing(false)} onShared={() => countShare(id)} />}
     </div>
   );
 };

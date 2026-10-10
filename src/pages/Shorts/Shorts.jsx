@@ -27,6 +27,7 @@ import { Spinner } from "../../components/ui/ui";
 import { useFetch } from "../../hooks/useFetch";
 import Comments from "../../components/Comments/Comments";
 import SaveDialog from "../../components/SaveDialog/SaveDialog";
+import ShareDialog from "../../components/ShareDialog/ShareDialog";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import { reactToVideo } from "../../api/engage";
 import { api } from "../../api/axios";
@@ -37,7 +38,7 @@ import { formatCount } from "../../utils/format";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
 import { useWatchPresence } from "../../hooks/useWatchPresence";
 import { channelPath, videoId } from "../../utils/format";
-import { countView } from "../../utils/visitor";
+import { countShare, countView } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
 import StudioLink from "../../components/StudioLink/StudioLink";
 
@@ -164,6 +165,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const shortUrl = `${window.location.origin}/shorts?v=${id}`;
   const liked = viewer?.reaction === 1;
   const isMine = myChannel && myChannel.id === video.channel?.id;
@@ -228,14 +230,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
     }
   };
 
-  const share = async () => {
-    try {
-      if (navigator.share) await navigator.share({ title: video.title, url: shortUrl });
-      else await copyLink();
-    } catch {
-      // Share sheet dismissed.
-    }
-  };
+  const share = () => setSharing(true);
 
   const menuItems = [
     { label: "Description", icon: AlignLeft, run: () => setDescriptionOpen(true) },
@@ -329,7 +324,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
         </div>
 
         {/* Right-hand action rail */}
-        <div className="absolute bottom-20 right-1.5 flex flex-col items-center gap-4 sm:right-3 lg:bottom-24 lg:gap-5">
+        <div className="absolute bottom-20 right-1.5 z-10 flex flex-col items-center gap-4 sm:right-3 lg:bottom-24 lg:gap-5">
           <Link to={channelPath(video.channel)} className="relative mb-1.5">
             <span className="block h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-black lg:h-12 lg:w-12">
               {video.channel?.avatar ? (
@@ -351,9 +346,10 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           <RailButton icon={Share2} label="Share" fill onClick={share} />
         </div>
 
-        {/* Channel + caption */}
-        <div className="absolute inset-x-0 bottom-0 px-3 pb-3.5 pr-16 lg:p-4 lg:pr-20">
-          <div className="flex items-center gap-2">
+        {/* Channel + caption. Its empty space lets taps through, so it never
+            covers the Like / Comment / Share buttons on short screens. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 px-3 pb-3.5 pr-16 lg:p-4 lg:pr-20">
+          <div className="pointer-events-auto flex w-fit max-w-full items-center gap-2">
             <Link to={channelPath(video.channel)} className="flex min-w-0 items-center gap-1">
               <span className="truncate text-sm font-semibold text-white">{handleOf(video.channel)}</span>
               {video.channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#2f86e6] text-white" />}
@@ -367,7 +363,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
               />
             )}
           </div>
-          <Link to={`/watch/${id}`} className="mt-1.5 line-clamp-1 block text-[13px] leading-snug text-white/95 lg:line-clamp-2 lg:text-sm">
+          <Link to={`/watch/${id}`} className="pointer-events-auto mt-1.5 line-clamp-1 block text-[13px] leading-snug text-white/95 lg:line-clamp-2 lg:text-sm">
             {video.title}
           </Link>
           {video.category && <p className="mt-0.5 truncate text-xs text-white/70">#PipraTube #{video.category} #Shorts</p>}
@@ -410,6 +406,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
         )}
 
         {saving && <SaveDialog videoId={id} onClose={() => setSaving(false)} />}
+        {sharing && <ShareDialog url={shortUrl} title={video.title} onClose={() => setSharing(false)} onShared={() => countShare(id)} />}
 
         <SeekBar videoRef={videoRef} progress={progress} duration={duration} />
       </div>

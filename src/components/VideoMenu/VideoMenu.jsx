@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Ban, Bookmark, Clock, Download, EllipsisVertical, Flag, ListPlus, MinusCircle, Share2, X } from "lucide-react";
 
 import SaveDialog from "../SaveDialog/SaveDialog";
+import ShareDialog from "../ShareDialog/ShareDialog";
 import { api } from "../../api/axios";
 import { apiError, studioApi, TOKEN_KEY } from "../../api/studioApi";
 import { useRequireSignIn } from "../../hooks/useRequireSignIn";
@@ -99,6 +100,7 @@ const VideoMenu = ({ video, className = "" }) => {
   const [position, setPosition] = useState(null);
   const [saving, setSaving] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const requireSignIn = useRequireSignIn();
 
   // Place the list beside the button, inside the screen, flipping up if needed.
@@ -150,18 +152,7 @@ const VideoMenu = ({ video, className = "" }) => {
     {
       label: "Share",
       icon: Share2,
-      run: async () => {
-        try {
-          if (navigator.share) await navigator.share({ title: video.title, url: link });
-          else {
-            await navigator.clipboard.writeText(link);
-            toast.success("Link copied");
-          }
-          countShare(video.id);
-        } catch {
-          // Share sheet dismissed.
-        }
-      },
+      run: () => setSharing(true),
     },
     "divider",
     { label: "Not interested", icon: Ban, run: () => hideVideo(video.id) },
@@ -229,6 +220,7 @@ const VideoMenu = ({ video, className = "" }) => {
 
       {saving && createPortal(<SaveDialog videoId={video.id} onClose={() => setSaving(false)} />, document.body)}
       {reporting && <ReportDialog video={video} onClose={() => setReporting(false)} />}
+      {sharing && <ShareDialog url={link} title={video.title} onClose={() => setSharing(false)} onShared={() => countShare(video.id)} />}
     </>
   );
 };

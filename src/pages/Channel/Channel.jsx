@@ -10,10 +10,10 @@ import { useFetch } from "../../hooks/useFetch";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import { categoryLabel } from "../../utils/categories";
 import { formatCount, fullDate, timeAgo, videoId, viewsText } from "../../utils/format";
-import { toast } from "../../utils/alerts";
 import StudioLink from "../../components/StudioLink/StudioLink";
 import VideoPreview from "../../components/VideoPreview/VideoPreview";
 import VideoMenu from "../../components/VideoMenu/VideoMenu";
+import ShareDialog from "../../components/ShareDialog/ShareDialog";
 
 // The channel page, laid out like YouTube's: banner, a big avatar with the
 // channel's name, handle and counts, a one-line description that opens the
@@ -120,14 +120,7 @@ const AboutDialog = ({ channel, subscribers, total, onClose }) => {
 
   const links = channel.links || [];
   const address = `${window.location.origin}/@${channel.handle}`;
-  const share = async () => {
-    try {
-      await navigator.clipboard.writeText(address);
-      toast.success("Channel link copied");
-    } catch {
-      toast.error("Couldn't copy the link");
-    }
-  };
+  const [sharing, setSharing] = useState(false);
   const row = "flex items-center gap-4";
   const icon = "h-5 w-5 shrink-0 text-white/80";
 
@@ -193,9 +186,10 @@ const AboutDialog = ({ channel, subscribers, total, onClose }) => {
           )}
         </ul>
 
-        <button type="button" onClick={share} className="mt-6 flex cursor-pointer items-center gap-2 rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
+        <button type="button" onClick={() => setSharing(true)} className="mt-6 flex cursor-pointer items-center gap-2 rounded-full bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-white/15">
           <Share2 className="h-4 w-4" /> Share channel
         </button>
+        {sharing && <ShareDialog url={address} title={channel.name} onClose={() => setSharing(false)} />}
       </div>
     </div>,
     document.body,
