@@ -205,7 +205,7 @@ const SettingsMenu = ({ speed, onSpeed, quality, loop, onLoop, onClose }) => {
 
   return (
     <div
-      className="absolute bottom-16 right-3 z-30 w-64 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-white/10 bg-[#1c1f26]/95 py-2 shadow-2xl backdrop-blur"
+      className="absolute bottom-2 right-2 z-30 max-h-[calc(100%-1rem)] w-64 max-w-[calc(100%-1rem)] overflow-y-auto rounded-xl border border-white/10 bg-[#1c1f26]/95 py-2 shadow-2xl backdrop-blur sm:bottom-16 sm:right-3 sm:max-h-[calc(100%-5rem)] sm:max-w-[calc(100%-1.5rem)]"
       onClick={(event) => event.stopPropagation()}
     >
       {page === "main" && (
@@ -606,7 +606,7 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
           type="button"
           aria-label="Play"
           onClick={togglePlay}
-          className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-[#ff1f4b]/90 shadow-[0_0_40px_rgba(255,31,75,0.45)] transition hover:scale-110"
+          className="absolute left-1/2 top-1/2 hidden h-20 w-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-[#ff1f4b]/90 sm:flex shadow-[0_0_40px_rgba(255,31,75,0.45)] transition hover:scale-110"
         >
           <Play className="ml-1 h-9 w-9 fill-white text-white" />
         </button>
@@ -655,8 +655,50 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
       )}
 
       {title && controlsVisible && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/75 to-transparent px-4 pb-8 pt-3 sm:px-5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 hidden bg-gradient-to-b from-black/75 to-transparent px-4 pb-8 pt-3 sm:block sm:px-5">
           <p className="truncate text-sm font-semibold text-white sm:text-base">{title}</p>
+        </div>
+      )}
+
+      {/* Phones (YouTube app style): settings top-right, and back 10s /
+          play-pause / forward 10s in the middle, so the small player
+          keeps the picture clear. */}
+      {countdown === null && (
+        <div
+          className={`absolute inset-0 z-10 transition-opacity duration-200 sm:hidden ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          onPointerUp={(event) => event.target === event.currentTarget && onSurfacePointerUp(event)}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-black/35" />
+          <div className="absolute right-1 top-1">
+            <ControlButton
+              label="Settings"
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenu((value) => !value);
+              }}
+            >
+              <span className="relative">
+                <Settings className={`h-5 w-5 transition-transform duration-300 ${menu ? "rotate-45" : ""}`} />
+                {speed !== 1 && <span className="absolute -right-2.5 -top-2 rounded bg-[#ff1f4b] px-0.5 text-[8px] font-bold leading-3">{speed}x</span>}
+              </span>
+            </ControlButton>
+          </div>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-10">
+            <button type="button" aria-label="Back 10 seconds" onClick={() => seekBy(-10)} className="pointer-events-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white">
+              <RotateCcw className="h-6 w-6" />
+            </button>
+            <button
+              type="button"
+              aria-label={playing ? "Pause" : "Play"}
+              onClick={togglePlay}
+              className={`pointer-events-auto flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white ${buffering && hasStarted ? "invisible" : ""}`}
+            >
+              {playing ? <Pause className="h-7 w-7 fill-white" /> : <Play className="ml-1 h-7 w-7 fill-white" />}
+            </button>
+            <button type="button" aria-label="Forward 10 seconds" onClick={() => seekBy(10)} className="pointer-events-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white">
+              <RotateCw className="h-6 w-6" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -664,17 +706,29 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
 
       {/* Controls */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2 pb-1.5 pt-10 transition-opacity duration-200 sm:px-3 ${
+        className={`absolute inset-x-0 bottom-0 z-10 flex flex-col px-2 pb-0.5 transition-opacity duration-200 sm:bg-gradient-to-t sm:from-black/85 sm:via-black/45 sm:to-transparent sm:px-3 sm:pb-1.5 sm:pt-10 ${
           controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="px-1">
+        <div className="order-2 px-1 sm:order-1">
           <ProgressBar videoRef={videoRef} current={current} duration={duration} buffered={buffered} onSeekStart={revealControls} />
         </div>
 
         {/* YouTube's newer look: each group of controls sits in its own
             translucent pill. */}
-        <div className="mt-1 flex items-center gap-1.5 sm:gap-2">
+        <div className="order-1 flex items-center gap-1 sm:hidden">
+          <span className="whitespace-nowrap px-2 text-xs font-semibold tabular-nums text-white">
+            {formatTime(current)} <span className="text-white/70">/ {formatTime(duration)}</span>
+          </span>
+          <ControlButton label={muted ? "Unmute" : "Mute"} onClick={toggleMute} className="ml-auto">
+            <VolumeIcon className="h-5 w-5" />
+          </ControlButton>
+          <ControlButton label={fullscreen ? "Exit full screen" : "Full screen"} onClick={toggleFullscreen}>
+            {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          </ControlButton>
+        </div>
+
+        <div className="order-2 mt-1 hidden items-center gap-1.5 sm:flex sm:gap-2">
           <div className={PILL}>
             <ControlButton label={playing ? "Pause (k)" : "Play (k)"} onClick={togglePlay}>
               {playing ? <Pause className="h-[22px] w-[22px] fill-white" /> : <Play className="ml-0.5 h-[22px] w-[22px] fill-white" />}
