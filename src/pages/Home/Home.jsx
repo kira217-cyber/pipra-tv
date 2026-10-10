@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { ArrowUpRight, CloudUpload, EllipsisVertical } from "lucide-react";
 
 import FeedCard from "../../components/FeedCard/FeedCard";
+import VideoPreview from "../../components/VideoPreview/VideoPreview";
 import LivePreviewCard from "../../components/LivePreviewCard/LivePreviewCard";
 import ChannelCircle, { ChannelRail, railItemClass } from "../../components/ChannelCircle/ChannelCircle";
 import { EmptyState, LogoMark, SectionHeader, Spinner } from "../../components/ui/ui";
@@ -14,6 +15,8 @@ import { IMG, channelPath, mediaUrl, videoId, viewsText } from "../../utils/form
 import StudioLink from "../../components/StudioLink/StudioLink";
 
 const PAGE_SIZE = 12;
+// Hovering a Short plays this many seconds on a loop.
+const SHORT_PREVIEW_SECONDS = 4;
 
 const ShortsMark = () => (
   <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
@@ -82,17 +85,8 @@ const ShortsShelf = ({ videos }) => (
           to={`/shorts?v=${videoId(video)}`}
           className="group relative w-[42%] shrink-0 snap-start overflow-hidden rounded-2xl bg-card-2 min-[480px]:w-[31%] sm:w-[23%] lg:w-[16%]"
         >
-          <div className="aspect-[9/16]">
-            {video.thumbnail && (
-              <img
-                src={video.thumbnail}
-                alt={video.title}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
-            )}
-          </div>
+          {/* Hover plays the first few seconds, silently, like YouTube. */}
+          <VideoPreview id={`home-short-${videoId(video)}`} src={video.videoUrl} poster={video.thumbnail} alt={video.title} clipSeconds={SHORT_PREVIEW_SECONDS} minimal className="aspect-[9/16]" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-10">
             <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-white">{video.title}</p>
             <p className="mt-0.5 text-xs text-white/80">{viewsText(video.views)}</p>

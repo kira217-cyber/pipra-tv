@@ -10,6 +10,7 @@ import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
 import { categoryLabel } from "../../utils/categories";
 import { formatCount, fullDate, viewsText } from "../../utils/format";
 import StudioLink from "../../components/StudioLink/StudioLink";
+import VideoPreview from "../../components/VideoPreview/VideoPreview";
 
 const TABS = ["Home", "Videos", "Shorts", "Playlists", "About"];
 const SORTS = [
@@ -41,9 +42,7 @@ const Banner = ({ url }) => (
 
 const ShortTile = ({ video }) => (
   <Link to={`/shorts?v=${video.id}`} className="group relative block overflow-hidden rounded-xl bg-card-2">
-    <div className="aspect-[9/16]">
-      {video.thumbnail && <img src={video.thumbnail} alt={video.title} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />}
-    </div>
+    <VideoPreview id={`channel-short-${video.id}`} src={video.videoUrl} poster={video.thumbnail} alt={video.title} clipSeconds={4} minimal className="aspect-[9/16]" />
     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-8">
       <span className="line-clamp-2 text-xs font-semibold">{video.title}</span>
       <span className="text-[11px] text-white/80">{viewsText(video.views)}</span>

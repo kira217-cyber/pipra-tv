@@ -8,6 +8,9 @@ import { Volume2, VolumeX } from "lucide-react";
 //   • Phones/tablets (no hover): with `autoplayInView`, whichever card is
 //     resting in the middle of the screen plays as you scroll the feed.
 //
+// Shorts (`clipSeconds` + `minimal`): like YouTube, hovering plays just the
+// first few seconds on a silent loop, filling the card, with no controls.
+//
 // Only one preview plays at a time across the whole page — starting one
 // stops the rest — and nothing is downloaded until a preview starts.
 
@@ -29,7 +32,7 @@ const formatClock = (seconds) => {
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 };
 
-const VideoPreview = ({ id, src, poster, alt, autoplayInView = false, eager = false, duration, className = "", children }) => {
+const VideoPreview = ({ id, src, poster, alt, autoplayInView = false, eager = false, duration, clipSeconds, minimal = false, className = "", children }) => {
   const boxRef = useRef(null);
   const videoRef = useRef(null);
   const timer = useRef(null);
@@ -95,12 +98,12 @@ const VideoPreview = ({ id, src, poster, alt, autoplayInView = false, eager = fa
   useEffect(() => {
     const player = videoRef.current;
     if (!active || !player) return;
-    player.muted = previewMuted;
+    player.muted = minimal ? true : previewMuted;
     player.play().catch(() => {
       // Autoplay refused (e.g. data saver) — fall back to the poster.
       setActive(false);
     });
-  }, [active]);
+  }, [active, minimal]);
 
   const hoverProps = canHover()
     ? {
@@ -152,24 +155,30 @@ const VideoPreview = ({ id, src, poster, alt, autoplayInView = false, eager = fa
         <video
           ref={videoRef}
           src={src}
-          muted={muted}
+          muted={minimal ? true : muted}
           playsInline
           preload="auto"
+          loop={Boolean(clipSeconds)}
           onPlaying={() => setReady(true)}
-          onTimeUpdate={(event) => setTime({ current: event.currentTarget.currentTime, total: event.currentTarget.duration })}
-          onEnded={stop}
-          className={`absolute inset-0 h-full w-full bg-black object-contain transition-opacity duration-300 ${ready ? "opacity-100" : "opacity-0"}`}
+          onTimeUpdate={(event) => {
+            const player = event.currentTarget;
+            // Shorts: back to the start after the first few seconds.
+            if (clipSeconds && player.currentTime >= clipSeconds) player.currentTime = 0;
+            setTime({ current: player.currentTime, total: player.duration });
+          }}
+          onEnded={clipSeconds ? undefined : stop}
+          className={`absolute inset-0 h-full w-full bg-black ${minimal ? "object-cover" : "object-contain"} transition-opacity duration-300 ${ready ? "opacity-100" : "opacity-0"}`}
         />
       )}
 
       {/* Duration badge, swapped for a countdown while previewing. */}
-      {(ready ? remaining !== null : Boolean(duration)) && (
+      {!minimal && (ready ? remaining !== null : Boolean(duration)) && (
         <span className="absolute bottom-2 right-2 z-10 rounded-md bg-black/80 px-1.5 py-0.5 text-xs font-semibold text-white">
           {ready ? formatClock(remaining) : duration}
         </span>
       )}
 
-      {ready && (
+      {ready && !minimal && (
         <>
           <button
             type="button"
