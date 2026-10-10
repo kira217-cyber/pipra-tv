@@ -1,42 +1,12 @@
 import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { ArrowLeft, Bell, CloudUpload, Menu, Search } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import Notifications from "./Notifications";
 import { Avatar, Logo } from "../ui/ui";
 import StudioLink from "../StudioLink/StudioLink";
-
-const SearchBox = ({ autoFocus, onDone }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [query, setQuery] = useState(() =>
-    location.pathname === "/search" ? new URLSearchParams(location.search).get("q") || "" : "",
-  );
-
-  const submit = (event) => {
-    event.preventDefault();
-    if (!query.trim()) return;
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
-    onDone?.();
-  };
-
-  return (
-    <form
-      onSubmit={submit}
-      className="flex h-11 w-full items-center gap-2 rounded-full border border-line bg-card-2 px-4 focus-within:border-brand/60"
-    >
-      <Search className="h-5 w-5 shrink-0 text-muted" />
-      <input
-        autoFocus={autoFocus}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search videos, channels..."
-        className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-      />
-    </form>
-  );
-};
+import SearchBox from "./SearchBox";
 
 const Header = ({ onMenu }) => {
   const { user, channel } = useAuth();
@@ -73,7 +43,7 @@ const Header = ({ onMenu }) => {
         <Logo className="h-10 max-w-full min-[380px]:h-12 sm:h-[52px]" />
       </Link>
 
-      <div className="mx-auto hidden w-full max-w-xl lg:block">
+      <div className="mx-auto hidden w-full max-w-2xl lg:block">
         <SearchBox />
       </div>
 
