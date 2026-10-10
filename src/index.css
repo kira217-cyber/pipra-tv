@@ -185,3 +185,24 @@ select option:checked {
 select option:disabled {
   color: #64748b;
 }
+
+/* Everything clickable shows the hand cursor (Tailwind v4 leaves buttons on
+   the default arrow); disabled controls show "not allowed". In the base
+   layer, so a utility class can still override it. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"],
+  [role="tab"],
+  select,
+  summary,
+  label:has(> input[type="file"]),
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
