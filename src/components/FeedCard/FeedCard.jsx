@@ -1,17 +1,25 @@
 import React from "react";
 import { Link } from "react-router";
-import { BadgeCheck, EllipsisVertical } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 
 import { Avatar } from "../ui/ui";
 import VideoPreview from "../VideoPreview/VideoPreview";
 import { channelPath, videoId, videoMeta } from "../../utils/format";
+import VideoMenu from "../VideoMenu/VideoMenu";
+import HiddenNotice from "../VideoMenu/HiddenNotice";
+import { HoverPanel, cardMenuClass } from "../VideoCard/VideoCard";
+import { hiddenReason, useVideoPrefs } from "../../utils/videoPrefs";
 
 // Full-width feed card from the new Home design: big poster, then the
 // channel avatar beside a two-line title and "channel ✓ · views · age".
 const FeedCard = ({ video, eager = false }) => {
+  const prefs = useVideoPrefs();
+  const hidden = hiddenReason(prefs, video);
   const to = `/watch/${videoId(video)}`;
+  if (hidden) return <HiddenNotice video={video} reason={hidden} className="min-h-[14rem]" />;
   return (
-    <article className="min-w-0">
+    <article className="group/card relative isolate min-w-0">
+      <HoverPanel />
       <Link to={to} className="block overflow-hidden rounded-2xl border border-line bg-card-2">
         <VideoPreview
           id={`feed-${videoId(video)}`}
@@ -41,7 +49,7 @@ const FeedCard = ({ video, eager = false }) => {
             {videoMeta(video) && <span>{videoMeta(video)}</span>}
           </p>
         </Link>
-        <EllipsisVertical className="mt-0.5 h-5 w-5 shrink-0 text-white/80" />
+        <VideoMenu video={video} className={cardMenuClass} />
       </div>
     </article>
   );

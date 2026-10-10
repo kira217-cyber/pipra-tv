@@ -5,6 +5,9 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, EllipsisVertical, Pl
 import { Avatar } from "../ui/ui";
 import VideoPreview from "../VideoPreview/VideoPreview";
 import { channelPath, videoId, videoMeta } from "../../utils/format";
+import VideoMenu from "../VideoMenu/VideoMenu";
+import HiddenNotice from "../VideoMenu/HiddenNotice";
+import { hiddenReason, useVideoPrefs } from "../../utils/videoPrefs";
 
 const Thumb = ({ video, className = "aspect-video", autoplayInView = false }) => (
   <VideoPreview
@@ -18,21 +21,38 @@ const Thumb = ({ video, className = "aspect-video", autoplayInView = false }) =>
   />
 );
 
-// The standard card in every row: 16:9 poster, title, channel, meta.
-export const VideoCard = ({ video, showChannel = true, className = "" }) => (
-  <Link to={`/watch/${videoId(video)}`} className={`group block min-w-0 ${className}`}>
-    <Thumb video={video} />
-    <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-white sm:text-[15px]">
-      {video.title}
-    </p>
-    {showChannel && video.channel?.name && (
-      <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{video.channel?.name}</p>
-    )}
-    {videoMeta(video) && (
-      <p className="truncate text-xs text-muted sm:text-sm">{videoMeta(video)}</p>
-    )}
-  </Link>
+// YouTube's hover: a soft panel eases in behind the whole card — it fades
+// and grows from 97% together, and settles out the same way (mouse only).
+export const HoverPanel = () => (
+  <span className="pointer-events-none absolute -inset-2 -z-10 scale-[0.97] rounded-2xl bg-white/[0.07] opacity-0 transition-[opacity,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] [@media(hover:hover)]:group-hover/card:scale-100 [@media(hover:hover)]:group-hover/card:opacity-100" />
 );
+
+// The ⋮ button: always there on touch screens, on hover with a mouse.
+export const cardMenuClass = "-mr-2 -mt-1 transition-opacity duration-300 ease-[cubic-bezier(0.2,0,0,1)] [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/card:opacity-100 [@media(hover:hover)]:focus:opacity-100";
+
+// The standard card in every row: 16:9 poster, title, channel, meta, ⋮.
+export const VideoCard = ({ video, showChannel = true, className = "" }) => {
+  const prefs = useVideoPrefs();
+  const hidden = hiddenReason(prefs, video);
+  if (hidden) return <HiddenNotice video={video} reason={hidden} className={className} />;
+  const to = `/watch/${videoId(video)}`;
+  return (
+    <div className={`group/card relative isolate min-w-0 ${className}`}>
+      <HoverPanel />
+      <Link to={to} className="group block">
+        <Thumb video={video} />
+      </Link>
+      <div className="mt-2 flex gap-1">
+        <Link to={to} className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-medium leading-snug text-white sm:text-[15px]">{video.title}</p>
+          {showChannel && video.channel?.name && <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{video.channel?.name}</p>}
+          {videoMeta(video) && <p className="truncate text-xs text-muted sm:text-sm">{videoMeta(video)}</p>}
+        </Link>
+        <VideoMenu video={video} className={cardMenuClass} />
+      </div>
+    </div>
+  );
+};
 
 // A horizontally scrolling row of cards — swipe on mobile, scroll on desktop.
 // Swipe on phones; on desktop, arrow buttons (shown only when there's more
