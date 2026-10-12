@@ -26,6 +26,7 @@ import {
 import AdOverlay from "../AdOverlay/AdOverlay";
 import { useAdCampaigns } from "../../hooks/useAdCampaigns";
 import { useWatchPresence } from "../../hooks/useWatchPresence";
+import { playableSrc, useHlsSource } from "../../utils/hls";
 import { trackAction } from "../../hooks/presenceSocket";
 
 // YouTube-style player: a scrubbable progress bar that shows what's
@@ -199,7 +200,7 @@ const ProgressBar = ({ videoRef, current, duration, buffered, onSeekStart, onSee
 };
 
 // ---------- settings menu ----------
-const SettingsMenu = ({ speed, onSpeed, quality, loop, onLoop, onClose }) => {
+const SettingsMenu = ({ speed, onSpeed, quality, levels = [], level = -1, onLevel, loop, onLoop, onClose }) => {
   const [page, setPage] = useState("main");
   const row = "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-white hover:bg-white/10";
 
@@ -216,7 +217,7 @@ const SettingsMenu = ({ speed, onSpeed, quality, loop, onLoop, onClose }) => {
           </button>
           <button type="button" className={row} onClick={() => setPage("quality")}>
             <SlidersHorizontal className="h-5 w-5" /> <span className="flex-1">Quality</span>
-            <span className="text-white/70">{qualityLabel(quality)}</span> <ChevronRight className="h-4 w-4 text-white/60" />
+            <span className="text-white/70">{levels.length > 1 && level === -1 ? `Auto (${qualityLabel(quality)})` : qualityLabel(quality)}</span> <ChevronRight className="h-4 w-4 text-white/60" />
           </button>
           <button type="button" className={row} onClick={() => onLoop(!loop)}>
             <Repeat className="h-5 w-5" /> <span className="flex-1">Loop</span>
@@ -249,7 +250,26 @@ const SettingsMenu = ({ speed, onSpeed, quality, loop, onLoop, onClose }) => {
           </button>
         ))}
 
-      {page === "quality" && (
+      {page === "quality" && levels.length > 1 && (
+        <>
+          {[...levels.map((height, index) => ({ index, height })).sort((a, b) => b.height - a.height), { index: -1, height: 0 }].map(({ index, height }) => (
+            <button
+              key={index}
+              type="button"
+              className={row}
+              onClick={() => {
+                onLevel(index);
+                onClose();
+              }}
+            >
+              <span className="w-5">{level === index && <Check className="h-4 w-4" />}</span>
+              {index === -1 ? `Auto${level === -1 && quality ? ` (${qualityLabel(quality)})` : ""}` : qualityLabel(height)}
+            </button>
+          ))}
+        </>
+      )}
+
+      {page === "quality" && levels.length <= 1 && (
         <>
           <div className={`${row} cursor-default hover:bg-transparent`}>
             <span className="w-5">
@@ -284,6 +304,21 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
   const [speed, setSpeed] = useState(() => readPrefs().speed);
   const [loop, setLoop] = useState(false);
   const [quality, setQuality] = useState(0);
+  // HLS videos (Bunny Stream) come in several sizes: heights by level, and
+  // the chosen level (-1 = Auto, picked from the connection speed).
+  const hlsRef = useRef(null);
+  const [levels, setLevels] = useState([]);
+  const [level, setLevel] = useState(-1);
+  useHlsSource(videoRef, src, {
+    onReady: (hls) => {
+      hlsRef.current = hls;
+      setLevels([]);
+      setLevel(-1);
+      if (!hls) return;
+      hls.on("hlsManifestParsed", (_, data) => setLevels(data.levels.map((l) => l.height || 0)));
+      hls.on("hlsLevelSwitched", (_, data) => setQuality(hls.levels[data.level]?.height || 0));
+    },
+  });
   const [fullscreen, setFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [menu, setMenu] = useState(false);
@@ -549,7 +584,7 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
     >
       <video
         ref={videoRef}
-        src={src}
+        src={playableSrc(src)}
         poster={poster}
         playsInline
         preload="metadata"
@@ -702,7 +737,22 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
         </div>
       )}
 
-      {menu && <SettingsMenu speed={speed} onSpeed={changeSpeed} quality={quality} loop={loop} onLoop={setLoop} onClose={() => setMenu(false)} />}
+      {menu && (
+        <SettingsMenu
+          speed={speed}
+          onSpeed={changeSpeed}
+          quality={quality}
+          levels={levels}
+          level={level}
+          onLevel={(index) => {
+            if (hlsRef.current) hlsRef.current.currentLevel = index;
+            setLevel(index);
+          }}
+          loop={loop}
+          onLoop={setLoop}
+          onClose={() => setMenu(false)}
+        />
+      )}
 
       {/* Controls */}
       <div
