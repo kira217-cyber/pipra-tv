@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { EllipsisVertical, Maximize } from "lucide-react";
 
-import { Avatar, Logo } from "../ui/ui";
+import { Avatar } from "../ui/ui";
+import LiveTvOverlays from "../LiveTvPlayer/LiveTvOverlays";
 import { api } from "../../api/axios";
 import { useViewerStats, formatOnline } from "../../hooks/useViewerStats";
 import { IMG, mediaUrl } from "../../utils/format";
@@ -61,9 +62,8 @@ const LivePreviewCard = ({ channel, fallbackImage }) => {
         <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-md bg-live px-2.5 py-1 text-sm font-bold text-white shadow-lg">
           <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> LIVE
         </span>
-        <span className="absolute right-3 top-2">
-          <Logo className="h-9 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] sm:h-11" />
-        </span>
+        {/* The logo the admin set for this channel (or the PipraTube logo). */}
+        <LiveTvOverlays channelId={channel._id} logoOnly />
         <span className="absolute bottom-3 right-3 flex items-center gap-3 rounded-lg bg-black/55 px-2.5 py-1 text-sm font-bold text-live backdrop-blur-sm">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-live" /> LIVE

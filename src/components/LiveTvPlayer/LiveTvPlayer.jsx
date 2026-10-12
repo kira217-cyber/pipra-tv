@@ -3,6 +3,7 @@ import { Eye, Heart } from "lucide-react";
 
 import HlsPlayer from "../HlsPlayer/HlsPlayer";
 import ScheduledLiveTvPlayer from "../ScheduledLiveTvPlayer/ScheduledLiveTvPlayer";
+import LiveTvOverlays from "./LiveTvOverlays";
 import { Avatar, Logo } from "../ui/ui";
 import { formatOnline, formatViews, useViewerStats } from "../../hooks/useViewerStats";
 import { IMG, mediaUrl } from "../../utils/format";
@@ -73,9 +74,7 @@ const LiveTvPlayer = ({ channel, initialNowPlaying, onUnavailable }) => {
               onUnavailable={onUnavailable}
             />
           )}
-          <span className="pointer-events-none absolute right-3 top-2">
-            <Logo className="h-9 opacity-95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] sm:h-12" />
-          </span>
+          <LiveTvOverlays key={`overlays-${channel._id}`} channelId={channel._id} />
         </div>
       </div>
       <NowPlayingBar channel={channel} />
