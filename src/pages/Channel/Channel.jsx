@@ -13,6 +13,8 @@ import { formatCount, fullDate, timeAgo, videoId, viewsText } from "../../utils/
 import StudioLink from "../../components/StudioLink/StudioLink";
 import VideoPreview from "../../components/VideoPreview/VideoPreview";
 import VideoMenu from "../../components/VideoMenu/VideoMenu";
+import { playableSrc, useHlsSource } from "../../utils/hls";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import ShareDialog from "../../components/ShareDialog/ShareDialog";
 
 // The channel page, laid out like YouTube's: banner, a big avatar with the
@@ -54,7 +56,7 @@ const Banner = ({ url }) => (
 const ShortTile = ({ video, className = "" }) => (
   <div className={`group/card relative ${className}`}>
     <Link to={`/shorts?v=${video.id}`} className="block overflow-hidden rounded-xl bg-card-2">
-      <VideoPreview id={`channel-short-${video.id}`} src={video.videoUrl} poster={video.thumbnail} alt={video.title} clipSeconds={4} minimal className="aspect-[9/16]" />
+      <VideoPreview id={`channel-short-${video.id}`} src={video.videoUrl} posterWidth={360} poster={video.thumbnail} alt={video.title} clipSeconds={4} minimal className="aspect-[9/16]" />
     </Link>
     <div className="mt-2 flex gap-1">
       <Link to={`/shorts?v=${video.id}`} className="min-w-0 flex-1">
@@ -68,25 +70,39 @@ const ShortTile = ({ video, className = "" }) => (
 
 // The big video at the top of the Home tab: it plays (muted) right on the
 // page, with its title and description beside it.
-const Featured = ({ video }) => (
-  <section className="flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:gap-6">
-    <div className="w-full shrink-0 md:w-[46%] lg:w-[424px]">
-      <video src={video.videoUrl} poster={video.thumbnail} controls muted autoPlay playsInline preload="metadata" className="aspect-video w-full rounded-xl bg-black" />
-    </div>
-    <div className="min-w-0 flex-1">
-      <Link to={`/watch/${videoId(video)}`} className="line-clamp-2 text-base font-semibold hover:text-white sm:text-lg">
-        {video.title}
-      </Link>
-      <p className="mt-1 text-xs text-muted sm:text-sm">
-        {viewsText(video.views)} · {timeAgo(video.publishedAt || video.createdAt)}
-      </p>
-      {video.description && <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm text-slate-200">{video.description}</p>}
-      <Link to={`/watch/${videoId(video)}`} className="mt-3 inline-block text-sm font-semibold uppercase text-white/90 hover:text-white">
-        Read more
-      </Link>
-    </div>
-  </section>
-);
+const Featured = ({ video }) => {
+  const ref = useRef(null);
+  useHlsSource(ref, video.hlsUrl || video.videoUrl);
+  return (
+    <section className="flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:gap-6">
+      <div className="w-full shrink-0 md:w-[46%] lg:w-[424px]">
+        <video
+          ref={ref}
+          src={playableSrc(video.hlsUrl || video.videoUrl)}
+          poster={video.thumbnail}
+          controls
+          muted
+          autoPlay
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full rounded-xl bg-black"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <Link to={`/watch/${videoId(video)}`} className="line-clamp-2 text-base font-semibold hover:text-white sm:text-lg">
+          {video.title}
+        </Link>
+        <p className="mt-1 text-xs text-muted sm:text-sm">
+          {viewsText(video.views)} · {timeAgo(video.publishedAt || video.createdAt)}
+        </p>
+        {video.description && <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm text-slate-200">{video.description}</p>}
+        <Link to={`/watch/${videoId(video)}`} className="mt-3 inline-block text-sm font-semibold uppercase text-white/90 hover:text-white">
+          Read more
+        </Link>
+      </div>
+    </section>
+  );
+};
 
 const Section = ({ title, icon: Icon, onAll, children }) => (
   <section>
@@ -203,6 +219,7 @@ const Channel = ({ handle }) => {
   const { data, loading, error } = useFetch(`/api/channels/${encodeURIComponent(key)}`);
   const channel = data?.channel;
   const cid = channel?.id;
+  useDocumentTitle(channel?.name);
 
   const [tab, setTab] = useState("Home");
   const [sort, setSort] = useState("latest");

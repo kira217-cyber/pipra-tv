@@ -23,6 +23,7 @@ import { categoryLabel } from "../../utils/categories";
 import { channelPath, formatCount, fullDate, timeAgo, videoId, viewsText } from "../../utils/format";
 import { countShare, countView } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import StudioLink from "../../components/StudioLink/StudioLink";
 
 const THEATER_KEY = "pipra_theater";
@@ -90,7 +91,7 @@ const ShortsShelf = ({ shorts }) => {
             // 2½ cards in view (the half one says "scroll me"), in a 3:4 frame —
             // wider and shorter than a full 9:16 Short.
             <Link key={short.id} to={`/shorts?v=${short.id}`} className="group w-[calc((100%-0.75rem)/2.5)] min-w-[136px] max-w-[190px] shrink-0 snap-start">
-              <VideoPreview id={`next-short-${short.id}`} src={short.videoUrl} poster={short.thumbnail} alt="" clipSeconds={4} minimal className="aspect-[3/4] rounded-xl bg-card-2" />
+              <VideoPreview id={`next-short-${short.id}`} src={short.videoUrl} posterWidth={360} poster={short.thumbnail} alt="" clipSeconds={4} minimal className="aspect-[3/4] rounded-xl bg-card-2" />
               <p className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-white">{short.title}</p>
               <p className="mt-0.5 text-xs text-muted">{viewsText(short.views)}</p>
             </Link>
@@ -113,6 +114,7 @@ const ShortsShelf = ({ shorts }) => {
 
 // Everything below the fetch — keyed by video so all state starts fresh.
 const WatchBody = ({ video, viewer }) => {
+  useDocumentTitle(video.title);
   const id = video.id;
   const { channel: myChannel } = useAuth();
   const requireSignIn = useRequireSignIn();
@@ -211,7 +213,7 @@ const WatchBody = ({ video, viewer }) => {
             nextVideo={nextVideo}
             theater={theater}
             onTheaterChange={changeTheater}
-            src={video.videoUrl}
+            src={video.hlsUrl || video.videoUrl}
             poster={video.thumbnail}
             title={video.title}
             adsTarget={{ video: id }}

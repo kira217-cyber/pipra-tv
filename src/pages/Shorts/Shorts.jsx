@@ -40,6 +40,8 @@ import { useWatchPresence } from "../../hooks/useWatchPresence";
 import { channelPath, videoId } from "../../utils/format";
 import { countShare, countView } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
+import { playableSrc, useHlsSource } from "../../utils/hls";
+import { setPageTitle, useDocumentTitle } from "../../hooks/useDocumentTitle";
 import StudioLink from "../../components/StudioLink/StudioLink";
 
 const TABS = [
@@ -205,14 +207,18 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) player.play().catch(() => {});
-        else player.pause();
+        if (entry.isIntersecting) {
+          player.play().catch(() => {});
+          setPageTitle(video.title);
+        } else player.pause();
       },
       { threshold: 0.6 },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [video.title]);
+
+  useHlsSource(videoRef, video.videoUrl);
 
   const togglePlay = () => {
     const player = videoRef.current;
@@ -244,7 +250,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
       <div className="relative h-full w-full overflow-hidden bg-black lg:aspect-[9/16] lg:w-auto lg:rounded-2xl">
         <video
           ref={videoRef}
-          src={video.videoUrl}
+          src={playableSrc(video.videoUrl)}
           poster={video.thumbnail || undefined}
           muted={muted}
           loop
@@ -417,6 +423,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
 const SWIPE_PX = 50;
 
 const Shorts = () => {
+  useDocumentTitle("Shorts");
   const navigate = useNavigate();
   const [tab, setTab] = useState("foryou");
   const [muted, setMuted] = useState(true);
@@ -439,6 +446,15 @@ const Shorts = () => {
     if (tab === "trending") return [...list].sort((a, b) => (b.views || 0) - (a.views || 0));
     return list;
   }, [data, first, tab, settings]);
+
+  // A shared link (?v=…) puts its Short first. It can arrive after the
+  // random feed is already on screen; the browser would then keep the old
+  // first Short in view and push the linked one above it — so jump back to
+  // the top, to the Short that was linked.
+  const firstId = first?.video?.isShort ? first.video.id : null;
+  useEffect(() => {
+    if (firstId && feedRef.current) feedRef.current.scrollTop = 0;
+  }, [firstId]);
 
   // The feed owns the gestures on this page — stop the page behind it
   // from scrolling (or bouncing) at the same time.

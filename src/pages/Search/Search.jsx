@@ -6,11 +6,13 @@ import ChannelCircle, { ChannelRail, railItemClass } from "../../components/Chan
 import { VideoGrid } from "../../components/VideoCard/VideoCard";
 import { EmptyState, SectionHeader, Spinner } from "../../components/ui/ui";
 import { useFetch } from "../../hooks/useFetch";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { channelPath } from "../../utils/format";
 
 const Search = () => {
   const [params] = useSearchParams();
   const q = (params.get("q") || "").trim();
+  useDocumentTitle(q || "Search");
 
   const { data: videos, loading: loadingVideos } = useFetch(q ? "/api/videos" : null, { search: q, limit: 40 });
   const { data: channels } = useFetch(q ? "/api/channels" : null, { search: q, limit: 20 });

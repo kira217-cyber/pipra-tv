@@ -5,6 +5,7 @@ import LiveTvPlayer from "../../components/LiveTvPlayer/LiveTvPlayer";
 import { Spinner } from "../../components/ui/ui";
 import { LogoTile, SectionPanel } from "./liveTvUi";
 import { useFetch } from "../../hooks/useFetch";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useLiveTvAvailability } from "../../hooks/useLiveTvAvailability";
 
 // A single Live TV channel opened by link (Home's Live TV row, View All).
@@ -13,6 +14,7 @@ const LiveTvWatch = () => {
   const { data, loading, error } = useFetch(`/api/site/live-tv/${id}`);
 
   const related = useMemo(() => data?.related || [], [data]);
+  useDocumentTitle(data?.channel?.name ? `${data.channel.name} Live` : null);
   const { isAvailable, markUnavailable } = useLiveTvAvailability(related);
   const visibleRelated = related.filter(isAvailable);
 

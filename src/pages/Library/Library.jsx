@@ -11,6 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { channelPath, timeAgo, viewsText } from "../../utils/format";
 import { toast, confirmDialog } from "../../utils/alerts";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import StudioLink from "../../components/StudioLink/StudioLink";
 
 const Rail = ({ videos }) => (
@@ -220,6 +221,7 @@ export const PlaylistPage = () => {
   const client = localStorage.getItem(TOKEN_KEY) ? studioApi : api;
   const { data, loading, error } = useFetch(`/api/playlists/${id}`, undefined, client);
   const [removed, setRemoved] = useState(new Set());
+  useDocumentTitle(data?.playlist?.title);
 
   if (error) return <Navigate to="/" replace />;
   if (loading || !data) return <Spinner className="min-h-[60vh]" />;
