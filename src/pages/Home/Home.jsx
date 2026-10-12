@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router";
-import { ArrowUpRight, CloudUpload, EllipsisVertical } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, CloudUpload, EllipsisVertical } from "lucide-react";
 
 import FeedCard from "../../components/FeedCard/FeedCard";
 import VideoPreview from "../../components/VideoPreview/VideoPreview";
@@ -8,10 +8,11 @@ import LivePreviewCard from "../../components/LivePreviewCard/LivePreviewCard";
 import ChannelCircle, { ChannelRail, railItemClass } from "../../components/ChannelCircle/ChannelCircle";
 import { EmptyState, LogoMark, SectionHeader, Spinner } from "../../components/ui/ui";
 import { api } from "../../api/axios";
-import { VideoRail } from "../../components/VideoCard/VideoCard";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
 import { useFetch } from "../../hooks/useFetch";
+import { VideoRail } from "../../components/VideoCard/VideoCard";
 import { IMG, channelPath, mediaUrl, videoId, viewsText } from "../../utils/format";
+import { useRailGestures } from "../../hooks/useRailGestures";
 import StudioLink from "../../components/StudioLink/StudioLink";
 
 const PAGE_SIZE = 12;
@@ -68,34 +69,101 @@ const SponsoredCard = ({ ad }) => {
   );
 };
 
-const ShortsShelf = ({ videos }) => (
-  <section className="sm:col-span-2 lg:col-span-3">
-    <div className="mb-3 flex items-center justify-between">
-      <h2 className="flex items-center gap-2 text-xl font-bold">
-        <ShortsMark /> Shorts
-      </h2>
-      <Link to="/shorts" className="text-sm font-medium text-muted hover:text-white">
-        See all
-      </Link>
-    </div>
-    <div className="no-scrollbar -mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      {videos.map((video) => (
-        <Link
-          key={videoId(video)}
-          to={`/shorts?v=${videoId(video)}`}
-          className="group relative w-[42%] shrink-0 snap-start overflow-hidden rounded-2xl bg-card-2 min-[480px]:w-[31%] sm:w-[23%] lg:w-[16%]"
-        >
-          {/* Hover plays the first few seconds, silently, like YouTube. */}
-          <VideoPreview id={`home-short-${videoId(video)}`} src={video.videoUrl} poster={video.thumbnail} alt={video.title} clipSeconds={SHORT_PREVIEW_SECONDS} minimal className="aspect-[9/16]" />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-10">
-            <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-white">{video.title}</p>
-            <p className="mt-0.5 text-xs text-white/80">{viewsText(video.views)}</p>
-          </div>
+// A sideways row of Shorts: swipe on phones; on desktop, arrow buttons
+// (shown only when there's more that way) and click-and-drag.
+const ShortsShelf = ({ videos }) => {
+  const rail = useRef(null);
+  const drag = useRef(null);
+  const [edges, setEdges] = useState({ start: true, end: true });
+  useRailGestures(rail);
+
+  const measure = useCallback(() => {
+    const el = rail.current;
+    if (!el) return;
+    const next = { start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 };
+    // Only re-render when an arrow actually appears or goes — not on every scroll frame.
+    setEdges((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, videos.length]);
+
+  const scrollBy = (direction) => rail.current?.scrollBy({ left: direction * rail.current.clientWidth * 0.85, behavior: "smooth" });
+  const arrow =
+    "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/75 text-white shadow-xl backdrop-blur transition hover:bg-black sm:flex";
+
+  return (
+    // min-w-0: as a grid item it would otherwise grow to fit every card and
+    // leave nothing to scroll.
+    <section className="offscreen-lazy -mx-4 min-w-0 px-4 sm:col-span-2 sm:-mx-3 sm:px-3 lg:col-span-3">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-bold">
+          <ShortsMark /> Shorts
+        </h2>
+        <Link to="/shorts" className="text-sm font-medium text-muted hover:text-white">
+          See all
         </Link>
-      ))}
-    </div>
-  </section>
-);
+      </div>
+      <div className="relative">
+        <div
+          ref={rail}
+          onScroll={measure}
+          onDragStart={(event) => event.preventDefault()}
+          onPointerDown={(event) => {
+            if (event.pointerType !== "mouse" || event.button !== 0) return;
+            drag.current = { x: event.clientX, left: rail.current.scrollLeft, moved: false };
+          }}
+          onPointerMove={(event) => {
+            const d = drag.current;
+            if (!d) return;
+            const dx = event.clientX - d.x;
+            if (Math.abs(dx) > 5) d.moved = true;
+            if (d.moved) rail.current.scrollLeft = d.left - dx;
+          }}
+          onPointerUp={() => setTimeout(() => (drag.current = null), 0)}
+          onPointerLeave={() => (drag.current = null)}
+          onClickCapture={(event) => {
+            // A drag that ends on a card shouldn't open it.
+            if (drag.current?.moved) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          // scroll-px keeps the first card off the screen edge on phones.
+          className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2.5 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:scroll-px-0 sm:px-0"
+        >
+          {videos.map((video) => (
+            <Link
+              key={videoId(video)}
+              to={`/shorts?v=${videoId(video)}`}
+              className="group relative w-[42%] shrink-0 snap-start overflow-hidden rounded-2xl bg-card-2 min-[480px]:w-[31%] sm:w-[23%] lg:w-[16%]"
+            >
+              {/* Hover plays the first few seconds, silently, like YouTube. */}
+              <VideoPreview id={`home-short-${videoId(video)}`} src={video.videoUrl} posterWidth={360} poster={video.thumbnail} alt={video.title} clipSeconds={SHORT_PREVIEW_SECONDS} minimal className="aspect-[9/16]" />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-10">
+                <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-white">{video.title}</p>
+                <p className="mt-0.5 text-xs text-white/80">{viewsText(video.views)}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+        {!edges.start && (
+          <button type="button" aria-label="Scroll left" onClick={() => scrollBy(-1)} className={`${arrow} -left-3`}>
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+        )}
+        {!edges.end && (
+          <button type="button" aria-label="Scroll right" onClick={() => scrollBy(1)} className={`${arrow} -right-3`}>
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        )}
+      </div>
+    </section>
+  );
+};
 
 // How many cards sit in one row of the feed grid (1 / 2 / 3 columns).
 const COLUMN_QUERIES = ["(min-width: 1024px)", "(min-width: 640px)"];
@@ -249,7 +317,10 @@ const Home = () => {
     const section = k >= 2 && sections[k - 2];
     if (!section) return null;
     return (
-      <section key={`row-${section.id}`} className="sm:col-span-2 lg:col-span-3">
+      // The section reaches past the page gutter (-mx/px) because it skips
+      // painting outside its own box, and the row's hover panels and arrow
+      // buttons stick out a little.
+      <section key={`row-${section.id}`} className="offscreen-lazy -mx-4 min-w-0 px-4 sm:col-span-2 sm:-mx-3 sm:px-3 lg:col-span-3">
         <SectionHeader title={section.title} />
         <VideoRail videos={section.videos} />
       </section>
