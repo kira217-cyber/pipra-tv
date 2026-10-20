@@ -17,6 +17,7 @@ const Search = lazy(() => import("../pages/Search/Search"));
 const Login = lazy(() => import("../pages/Auth/Login"));
 const Register = lazy(() => import("../pages/Auth/Register"));
 const Handoff = lazy(() => import("../pages/Auth/Handoff"));
+const InfoPage = lazy(() => import("../pages/InfoPage/InfoPage"));
 import NotFound from "../pages/NotFound/NotFound";
 
 const libraryPage = (name) => lazy(() => import("../pages/Library/Library").then((module) => ({ default: module[name] })));
@@ -55,6 +56,8 @@ export const router = createBrowserRouter([
       { path: "feed/history", element: signedIn(<History />) },
       { path: "feed/liked", element: signedIn(<Liked />) },
       { path: "playlist/:id", element: <PlaylistPage /> },
+      // About, Contact, Terms, Privacy… (written in the admin panel)
+      { path: "page/:slug", element: <InfoPage /> },
 
       // YouTube-style channel address: /@handle
       { path: ":at", element: <ChannelByHandle /> },

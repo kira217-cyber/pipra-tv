@@ -1,12 +1,13 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router";
-import { ChevronRight, Crown, ExternalLink, Heart, LogIn, LogOut, Play } from "lucide-react";
+import { ChevronRight, Crown, ExternalLink, LogIn, LogOut, Play } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { Avatar, IconTile, Logo } from "../ui/ui";
 import { BROWSE_MENU, CREATOR_MENU, SETTINGS_MENU } from "../../utils/menu";
 import { channelPath } from "../../utils/format";
 import StudioLink from "../StudioLink/StudioLink";
+import SiteFooter from "../SiteFooter/SiteFooter";
 import { openStudio } from "../../utils/handoff";
 
 const MenuLink = ({ item, onNavigate, compact }) =>
@@ -180,14 +181,8 @@ const NavMenu = ({ onNavigate, showBrowse = false }) => {
         </div>
       </div>
 
-      <div className="mt-auto flex items-end justify-between px-1 pb-2 text-xs text-muted">
-        <span>PipraTube v1.0.0</span>
-        <span className="flex items-center gap-1.5 text-right">
-          Watch Together
-          <br />
-          Grow Together
-          <Heart className="h-5 w-5 fill-live text-live" />
-        </span>
+      <div className="mt-auto">
+        <SiteFooter onNavigate={onNavigate} />
       </div>
 
       {!showBrowse && (

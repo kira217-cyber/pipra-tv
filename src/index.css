@@ -163,10 +163,57 @@ html.is-scrolling main {
   }
 }
 
+/* The footer flag: the same RGB ring, a little thicker, with a soft glow. */
+.flag-frame::before {
+  padding: 2px;
+}
+.flag-frame::after {
+  opacity: 0.45;
+  filter: blur(16px);
+}
+
+/* Text in moving rainbow colours ("Made in Bangladesh"). */
+.rgb-text {
+  background: linear-gradient(90deg, #ff2d6f, #ff9a1f, #facc15, #22c55e, #06b6d4, #6366f1, #c026d3, #ff2d6f);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rgb-slide 4s linear infinite;
+}
+@keyframes rgb-slide {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+/* A soft light that sweeps across the trade licence cards now and then. */
+.license-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.16) 45%, transparent 60%);
+  transform: translateX(-120%);
+  animation: license-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+.license-shine:nth-child(2)::after {
+  animation-delay: 0.6s;
+}
+@keyframes license-shine {
+  55%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rgb-active::before,
   .rgb-active::after,
-  .rgb-active .icon-tile {
+  .rgb-active .icon-tile,
+  .rgb-text,
+  .license-shine::after {
     animation: none;
   }
 }
