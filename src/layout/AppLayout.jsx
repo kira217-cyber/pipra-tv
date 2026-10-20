@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { FacebookIcon, InstagramIcon, TelegramIcon, TiktokIcon, YoutubeIcon } from "./socialIcons";
 
@@ -131,6 +131,17 @@ const AppLayout = () => {
   // Live visitor feed for admin → Site Analytics, same as the old site.
   useEffect(() => {
     getPresenceSocket().emit("page:view", { path: location.pathname });
+  }, [location.pathname]);
+
+  // Meta Pixel (index.html) counts the first page; in-app navigation never
+  // reloads the page, so every later page is reported here.
+  const firstPage = useRef(true);
+  useEffect(() => {
+    if (firstPage.current) {
+      firstPage.current = false;
+      return;
+    }
+    window.fbq?.("track", "PageView");
   }, [location.pathname]);
 
   useEffect(() => {
