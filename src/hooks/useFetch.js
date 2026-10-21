@@ -64,6 +64,25 @@ export const useFetch = (url, params, client = api) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, client]);
 
+  // Coming back to the tab refreshes what's on screen, so nobody has to
+  // reload the page to see changes made meanwhile.
+  useEffect(() => {
+    if (!key) return undefined;
+    let alive = true;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      load(key, url, params, client)
+        .then((data) => alive && setState({ key, data, error: null }))
+        .catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, client]);
+
   const fresh = state.key === key;
   const cached = key && cache.has(key) ? cache.get(key) : null;
 
