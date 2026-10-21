@@ -28,6 +28,7 @@ import { useAdCampaigns } from "../../hooks/useAdCampaigns";
 import { useWatchPresence } from "../../hooks/useWatchPresence";
 import { playableSrc, useHlsSource } from "../../utils/hls";
 import { trackAction } from "../../hooks/presenceSocket";
+import { trackWatching } from "../../utils/watchTracker";
 
 // YouTube-style player: a scrubbable progress bar that shows what's
 // buffered and the time under the pointer, play / previous / next, a volume
@@ -285,7 +286,9 @@ const SettingsMenu = ({ speed, onSpeed, quality, levels = [], level = -1, onLeve
 };
 
 // ---------- the player ----------
-const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo, theater = false, onTheaterChange }) => {
+// `watchId`: the video whose views and watch time this player reports
+// (utils/watchTracker.js); `onView` is told when the view is counted.
+const VideoPlayer = ({ src, poster, title, adsTarget, onStart, watchId, onView, onNext, nextVideo, theater = false, onTheaterChange }) => {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const hideTimer = useRef(null);
@@ -360,6 +363,13 @@ const VideoPlayer = ({ src, poster, title, adsTarget, onStart, onNext, nextVideo
     video.addEventListener("playing", handle);
     return () => video.removeEventListener("playing", handle);
   }, [src]);
+
+  // Views and watch time — measured from real playback.
+  const onViewRef = useRef(onView);
+  useEffect(() => {
+    onViewRef.current = onView;
+  });
+  useEffect(() => trackWatching(videoRef.current, { videoId: watchId, onView: (response) => onViewRef.current?.(response) }), [src, watchId]);
 
   const showFlash = useCallback((text, side = "center") => {
     clearTimeout(flashTimer.current);

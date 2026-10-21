@@ -38,7 +38,8 @@ import { formatCount } from "../../utils/format";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
 import { useWatchPresence } from "../../hooks/useWatchPresence";
 import { channelPath, videoId } from "../../utils/format";
-import { countShare, countView } from "../../utils/visitor";
+import { countShare } from "../../utils/visitor";
+import { trackWatching } from "../../utils/watchTracker";
 import { toast } from "../../utils/alerts";
 import { playableSrc, useHlsSource } from "../../utils/hls";
 import { setPageTitle, useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -156,6 +157,8 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const counted = useRef(false);
+  // Views and watch time — measured from real playback.
+  useEffect(() => trackWatching(videoRef.current, { videoId: id }), [id]);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const { channel: myChannel } = useAuth();
@@ -261,7 +264,6 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
             if (!counted.current) {
               counted.current = true;
               loadViewer();
-              countView(id);
             }
             setPlaying(true);
           }}

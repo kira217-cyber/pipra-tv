@@ -21,7 +21,7 @@ import { useFetch } from "../../hooks/useFetch";
 import { useRequireSignIn } from "../../hooks/useRequireSignIn";
 import { categoryLabel } from "../../utils/categories";
 import { channelPath, formatCount, fullDate, timeAgo, videoId, viewsText } from "../../utils/format";
-import { countShare, countView } from "../../utils/visitor";
+import { countShare } from "../../utils/visitor";
 import { toast } from "../../utils/alerts";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import StudioLink from "../../components/StudioLink/StudioLink";
@@ -217,12 +217,11 @@ const WatchBody = ({ video, viewer }) => {
             poster={video.thumbnail}
             title={video.title}
             adsTarget={{ video: id }}
-            onStart={() =>
-              countView(id).then((response) => {
-                const next = response?.data?.data?.views;
-                if (next) setViews(next);
-              })
-            }
+            watchId={id}
+            onView={(response) => {
+              const next = response?.data?.data?.views;
+              if (next) setViews(next);
+            }}
           />
         </div>
       </div>
