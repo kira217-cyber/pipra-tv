@@ -1,16 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { KeyRound, Lock, Mail, Phone, UserRound } from "lucide-react";
+import { Gift, KeyRound, Lock, Mail, Phone, UserRound } from "lucide-react";
 
 import AuthShell from "./AuthShell";
 import { Field, PasswordInput, PrimaryButton, inputClass } from "../../components/ui/ui";
 import { useAuth } from "../../context/AuthContext";
 import { apiError, studioApi } from "../../api/studioApi";
+import { api } from "../../api/axios";
 import { toast } from "../../utils/alerts";
 
 // Sign up with a phone number or an email — whichever the admin has turned
 // on (GET /api/auth/options). When the admin asks for it, the number /
 // address is confirmed with a code (OTP) before the account is made.
+// An invite code (?ref=CODE) is remembered for 30 days, so someone who
+// comes back later through the plain sign-up page still counts for the
+// creator who invited them.
+const REF_KEY = "pipra_ref";
+const rememberedRef = (fromUrl) => {
+  try {
+    if (fromUrl) {
+      localStorage.setItem(REF_KEY, JSON.stringify({ code: fromUrl, at: Date.now() }));
+      return fromUrl;
+    }
+    const saved = JSON.parse(localStorage.getItem(REF_KEY) || "null");
+    return saved && Date.now() - saved.at < 30 * 86400e3 ? saved.code : "";
+  } catch {
+    return fromUrl || "";
+  }
+};
+
 const METHODS = [
   ["phone", "Phone", Phone],
   ["email", "Email", Mail],
@@ -27,6 +45,16 @@ const Register = () => {
   const [sending, setSending] = useState(false);
   const [codeSentTo, setCodeSentTo] = useState("");
   const [wait, setWait] = useState(0);
+  const [ref] = useState(() => rememberedRef(new URLSearchParams(location.search).get("ref")?.trim() || ""));
+  const [inviter, setInviter] = useState(null);
+
+  useEffect(() => {
+    if (!ref) return;
+    api
+      .get(`/api/referrals/${encodeURIComponent(ref)}`)
+      .then(({ data }) => setInviter(data.data.channel))
+      .catch(() => setInviter(null));
+  }, [ref]);
 
   const target = location.state?.from || "/";
 
@@ -91,7 +119,13 @@ const Register = () => {
         ...(method === "email" ? { email: contact } : { phone: contact }),
         password: form.password,
         ...(needsCode ? { otp: form.otp.trim() } : {}),
+        ...(ref ? { ref } : {}),
       });
+      try {
+        localStorage.removeItem(REF_KEY);
+      } catch {
+        // nothing to clear
+      }
       toast.success("Welcome to PipraTube!");
       navigate(target, { replace: true });
     } catch (error) {
@@ -129,6 +163,14 @@ const Register = () => {
   return (
     <AuthShell title="Create your account" subtitle="Watch, like, comment and start your own channel" footer={footer}>
       <form onSubmit={submit} className="space-y-4">
+        {inviter && (
+          <div className="flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/10 p-3">
+            {inviter.avatar ? <img src={inviter.avatar} alt="" className="h-10 w-10 rounded-full object-cover" /> : <Gift className="h-8 w-8 text-brand" />}
+            <p className="text-sm leading-snug">
+              <span className="font-bold text-white">{inviter.name}</span> invited you to PipraTube
+            </p>
+          </div>
+        )}
         <Field label="Your name" icon={UserRound} required>
           <input required value={form.name} onChange={set("name")} placeholder="e.g. Rahim Uddin" className={inputClass} autoComplete="name" />
         </Field>
