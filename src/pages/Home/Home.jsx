@@ -201,6 +201,7 @@ const Home = () => {
   const shuffleVideos = curated.shuffleVideos !== false;
   const shuffleShorts = curated.shuffleShorts !== false;
   const shortsEvery = curated.shortsEvery || 4;
+  const mobileShortsAfter = curated.mobileShortsAfter || 2;
   const columns = useColumns();
 
   // One random order per visit; it stays put while the feed pages in.
@@ -328,8 +329,10 @@ const Home = () => {
   };
 
   // The top ad and Live TV preview already take cells in the first row.
+  // Phones (one column) reach the first Shorts row sooner: ad, Live TV,
+  // a couple of videos, then Shorts.
   const lead = (ad?.image ? 1 : 0) + (ownChannel ? 1 : 0);
-  const firstChunk = Math.ceil((shortsEvery + lead) / columns) * columns - lead;
+  const firstChunk = columns === 1 ? mobileShortsAfter : Math.ceil((shortsEvery + lead) / columns) * columns - lead;
   const allLoaded = pages.page >= pages.totalPages;
   const blocks = [];
   let row = 0;

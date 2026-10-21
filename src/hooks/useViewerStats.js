@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { useSiteSettings } from "./useSiteSettings";
+
 // Live-looking audience numbers for a channel or a video. There is no
 // per-item analytics on the server, so both numbers are derived on the
 // client from the item's id — which keeps them stable per channel/video
@@ -7,7 +9,8 @@ import { useEffect, useState } from "react";
 // while you watch:
 //
 //   • "Online Today" drifts up AND down around its own base, like a real
-//     concurrent-viewer count.
+//     concurrent-viewer count — always within the range the admin set
+//     (Admin → Settings → Live TV viewer count).
 //   • "Views" only ever goes up. Its starting point is a function of
 //     wall-clock time, so a reload days later is always higher than
 //     before, and the highest value ever shown is remembered per id.
@@ -17,6 +20,7 @@ const VIEWS_STORAGE_PREFIX = "pipratv_views_";
 // Fixed point in time the "views grow steadily" curve is measured from.
 const VIEWS_ANCHOR_MS = Date.UTC(2026, 0, 1);
 
+const DEFAULT_RANGE = { min: 3000, max: 5000 };
 const ONLINE_TICK_MS = 4000;
 const VIEWS_TICK_MIN_MS = 3000;
 const VIEWS_TICK_MAX_MS = 8000;
@@ -71,10 +75,12 @@ const storeViews = (id, value) => {
   }
 };
 
-const buildProfile = (id) => {
+const buildProfile = (id, range) => {
   const random = seededRandom(hashId(id));
 
-  const onlineBase = Math.round(1500 + random() * 8000);
+  const onlineMin = Math.max(0, Math.min(range.min, range.max));
+  const onlineMax = Math.max(range.min, range.max);
+  const onlineBase = Math.round(onlineMin + random() * (onlineMax - onlineMin));
   const viewsBase = Math.round(200000 + random() * 2800000);
   const viewsPerHour = Math.round(15 + random() * 165);
 
@@ -83,34 +89,39 @@ const buildProfile = (id) => {
 
   return {
     onlineBase,
-    onlineMin: Math.round(onlineBase * 0.75),
-    onlineMax: Math.round(onlineBase * 1.3),
+    onlineMin,
+    onlineMax,
     viewsStart: Math.max(viewsNow, readStoredViews(id)),
   };
 };
 
 export const useViewerStats = (id) => {
+  const { settings } = useSiteSettings();
+  const range = settings?.liveViewers || DEFAULT_RANGE;
+  const key = id ? `${id}|${range.min}|${range.max}` : null;
   const [online, setOnline] = useState(0);
   const [views, setViews] = useState(0);
   const [profile, setProfile] = useState(null);
 
-  // A new id starts from its own profile — reset while rendering, not in
-  // the effect, so there's no extra render with the old numbers.
-  if (id && profile?.id !== id) {
-    const next = { id, ...buildProfile(id) };
+  // A new id (or a new range) starts from its own profile — reset while
+  // rendering, not in the effect, so there's no extra render with the old
+  // numbers.
+  if (key && profile?.key !== key) {
+    const next = { id, key, ...buildProfile(id, range) };
     setProfile(next);
     setOnline(next.onlineBase);
     setViews(next.viewsStart);
   }
 
   useEffect(() => {
-    if (!id || profile?.id !== id) return undefined;
+    if (!key || profile?.key !== key) return undefined;
 
     storeViews(id, profile.viewsStart);
 
     const onlineTimer = window.setInterval(() => {
       setOnline((current) => {
-        const swing = Math.round(profile.onlineBase * randomBetween(0.005, 0.03));
+        const width = Math.max(1, profile.onlineMax - profile.onlineMin);
+        const swing = Math.max(1, Math.round(width * randomBetween(0.01, 0.06)));
         const next = current + (Math.random() < 0.5 ? -swing : swing);
         return Math.min(profile.onlineMax, Math.max(profile.onlineMin, next));
       });
@@ -135,7 +146,7 @@ export const useViewerStats = (id) => {
       window.clearInterval(onlineTimer);
       window.clearTimeout(viewsTimer);
     };
-  }, [id, profile]);
+  }, [id, key, profile]);
 
   return { online, views };
 };
