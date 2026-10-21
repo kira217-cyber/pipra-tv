@@ -17,6 +17,7 @@ const Search = lazy(() => import("../pages/Search/Search"));
 const Login = lazy(() => import("../pages/Auth/Login"));
 const Register = lazy(() => import("../pages/Auth/Register"));
 const Handoff = lazy(() => import("../pages/Auth/Handoff"));
+const CopyCode = lazy(() => import("../pages/Auth/CopyCode"));
 const InfoPage = lazy(() => import("../pages/InfoPage/InfoPage"));
 import NotFound from "../pages/NotFound/NotFound";
 
@@ -49,6 +50,8 @@ export const router = createBrowserRouter([
       { path: "search", element: <Search /> },
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
+      // The "Copy code" button in the verification email.
+      { path: "copy-code", element: <CopyCode /> },
       // Arriving from PipraTube Studio with a one-time sign-in code.
       { path: "sso", element: <Handoff /> },
       { path: "you", element: signedIn(<You />) },

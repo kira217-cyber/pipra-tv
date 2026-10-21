@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { Gift, KeyRound, Lock, Mail, Phone, UserRound } from "lucide-react";
+import { CheckCircle2, Gift, KeyRound, Lock, Mail, Phone, UserRound, XCircle } from "lucide-react";
 
 import AuthShell from "./AuthShell";
 import { Field, PasswordInput, PrimaryButton, inputClass } from "../../components/ui/ui";
@@ -14,7 +14,8 @@ import { toast } from "../../utils/alerts";
 // address is confirmed with a code (OTP) before the account is made.
 // An invite code (?ref=CODE) is remembered for 30 days, so someone who
 // comes back later through the plain sign-up page still counts for the
-// creator who invited them.
+// creator who invited them. The code shows in its own field (it can also
+// be typed in), with who it belongs to once it's checked.
 const REF_KEY = "pipra_ref";
 const rememberedRef = (fromUrl) => {
   try {
@@ -45,15 +46,26 @@ const Register = () => {
   const [sending, setSending] = useState(false);
   const [codeSentTo, setCodeSentTo] = useState("");
   const [wait, setWait] = useState(0);
-  const [ref] = useState(() => rememberedRef(new URLSearchParams(location.search).get("ref")?.trim() || ""));
-  const [inviter, setInviter] = useState(null);
+  const [refInput, setRefInput] = useState(() => rememberedRef(new URLSearchParams(location.search).get("ref")?.trim() || ""));
+  const ref = refInput.trim().toUpperCase();
+  // { code, inviter } once a code has been checked (inviter null = not valid).
+  const [refCheck, setRefCheck] = useState({ code: "", inviter: null });
+  const inviter = ref && refCheck.code === ref ? refCheck.inviter : null;
+  const refState = !ref ? "none" : refCheck.code !== ref ? "checking" : inviter ? "ok" : "bad";
 
   useEffect(() => {
-    if (!ref) return;
-    api
-      .get(`/api/referrals/${encodeURIComponent(ref)}`)
-      .then(({ data }) => setInviter(data.data.channel))
-      .catch(() => setInviter(null));
+    if (!ref) return undefined;
+    let alive = true;
+    const timer = setTimeout(() => {
+      api
+        .get(`/api/referrals/${encodeURIComponent(ref)}`)
+        .then(({ data }) => alive && setRefCheck({ code: ref, inviter: data.data.channel }))
+        .catch(() => alive && setRefCheck({ code: ref, inviter: null }));
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [ref]);
 
   const target = location.state?.from || "/";
@@ -107,6 +119,10 @@ const Register = () => {
       toast.error("Password must be at least 6 characters");
       return;
     }
+    if (refState === "bad") {
+      toast.error("That referral code isn't valid — fix it or clear the field");
+      return;
+    }
     if (needsCode && !codeSent) {
       await sendCode();
       return;
@@ -119,7 +135,7 @@ const Register = () => {
         ...(method === "email" ? { email: contact } : { phone: contact }),
         password: form.password,
         ...(needsCode ? { otp: form.otp.trim() } : {}),
-        ...(ref ? { ref } : {}),
+        ...(refState === "ok" ? { ref } : {}),
       });
       try {
         localStorage.removeItem(REF_KEY);
@@ -166,9 +182,14 @@ const Register = () => {
         {inviter && (
           <div className="flex items-center gap-3 rounded-xl border border-brand/30 bg-brand/10 p-3">
             {inviter.avatar ? <img src={inviter.avatar} alt="" className="h-10 w-10 rounded-full object-cover" /> : <Gift className="h-8 w-8 text-brand" />}
-            <p className="text-sm leading-snug">
-              <span className="font-bold text-white">{inviter.name}</span> invited you to PipraTube
-            </p>
+            <div className="min-w-0 flex-1 text-sm leading-snug">
+              <p>
+                <span className="font-bold text-white">{inviter.name}</span> invited you to PipraTube
+              </p>
+              <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#4ade80]">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Referral code {ref} applied
+              </p>
+            </div>
           </div>
         )}
         <Field label="Your name" icon={UserRound} required>
@@ -203,6 +224,28 @@ const Register = () => {
         <Field label="Password" icon={Lock} required>
           <PasswordInput required value={form.password} onChange={set("password")} placeholder="At least 6 characters" autoComplete="new-password" />
         </Field>
+
+        <Field label="Referral code (optional)" icon={Gift}>
+          <input
+            value={refInput}
+            onChange={(event) => setRefInput(event.target.value.replace(/\s+/g, "").toUpperCase())}
+            placeholder="e.g. PTAB12CD"
+            maxLength={20}
+            className={`${inputClass} font-mono tracking-wider`}
+            autoComplete="off"
+          />
+        </Field>
+        {refState === "checking" && <p className="-mt-2 text-xs text-muted">Checking the code…</p>}
+        {refState === "ok" && (
+          <p className="-mt-2 flex items-center gap-1 text-xs font-semibold text-[#4ade80]">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Code applied — invited by {inviter.name}
+          </p>
+        )}
+        {refState === "bad" && (
+          <p className="-mt-2 flex items-center gap-1 text-xs font-semibold text-[#ff6b81]">
+            <XCircle className="h-3.5 w-3.5" /> This referral code isn't valid
+          </p>
+        )}
 
         {needsCode && codeSent && (
           <Field label={method === "phone" ? "Code from the SMS" : "Code from the email"} icon={KeyRound} required>
