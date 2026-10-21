@@ -424,12 +424,29 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
 
 const SWIPE_PX = 50;
 
+// The feed never ends: near the last Short another round of the same
+// Shorts is added, in a different (but stable) order each round.
+const LOOP_AHEAD = 3;
+const MAX_ROUNDS = 50;
+const shuffled = (list, seed) => {
+  const out = [...list];
+  let x = seed * 9301 + 49297;
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    x = (x * 9301 + 49297) % 233280;
+    const j = Math.floor((x / 233280) * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+
 const Shorts = () => {
   useDocumentTitle("Shorts");
   const navigate = useNavigate();
   const [tab, setTab] = useState("foryou");
   const [muted, setMuted] = useState(true);
   const [index, setIndex] = useState(0);
+  const [loop, setLoop] = useState({ tab: "foryou", rounds: 1 });
+  const rounds = loop.tab === tab ? loop.rounds : 1;
   const feedRef = useRef(null);
   const drag = useRef(null);
   const wheelLock = useRef(0);
@@ -448,6 +465,24 @@ const Shorts = () => {
     if (tab === "trending") return [...list].sort((a, b) => (b.views || 0) - (a.views || 0));
     return list;
   }, [data, first, tab, settings]);
+
+  // `videos` repeated `rounds` times; each item gets a key of its own.
+  const feed = useMemo(() => {
+    const out = videos.map((video) => ({ video, key: videoId(video) }));
+    for (let round = 1; round < rounds; round += 1) {
+      const next = shuffled(videos, round);
+      // Don't show the same Short twice in a row across rounds.
+      if (next.length > 1 && out.length && videoId(next[0]) === videoId(out[out.length - 1].video)) next.push(next.shift());
+      out.push(...next.map((video) => ({ video, key: `${round}:${videoId(video)}` })));
+    }
+    return out;
+  }, [videos, rounds]);
+
+  const onFeedScroll = (event) => {
+    const at = Math.round(event.currentTarget.scrollTop / Math.max(1, event.currentTarget.clientHeight));
+    setIndex(at);
+    if (videos.length && at >= feed.length - LOOP_AHEAD && rounds < MAX_ROUNDS) setLoop({ tab, rounds: rounds + 1 });
+  };
 
   // A shared link (?v=…) puts its Short first. It can arrive after the
   // random feed is already on screen; the browser would then keep the old
@@ -472,7 +507,7 @@ const Shorts = () => {
   const goTo = (next) => {
     const feed = feedRef.current;
     if (!feed || !videos.length) return;
-    const target = Math.max(0, Math.min(videos.length - 1, next));
+    const target = Math.max(0, Math.min(feed.length - 1, next));
     feed.scrollTo({ top: target * feed.clientHeight, behavior: "smooth" });
   };
 
@@ -597,11 +632,11 @@ const Shorts = () => {
               onPointerDown={onPointerDown}
               onPointerUp={onPointerUp}
               onPointerLeave={() => (drag.current = null)}
-              onScroll={(event) => setIndex(Math.round(event.currentTarget.scrollTop / Math.max(1, event.currentTarget.clientHeight)))}
+              onScroll={onFeedScroll}
               className="no-scrollbar h-full snap-y snap-mandatory overflow-y-scroll overflow-x-hidden overscroll-contain"
             >
-              {videos.map((video) => (
-                <div key={videoId(video)} className="h-full snap-start snap-always lg:py-2">
+              {feed.map(({ video, key }) => (
+                <div key={key} className="h-full snap-start snap-always lg:py-2">
                   <ShortItem video={video} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
                 </div>
               ))}
@@ -621,7 +656,7 @@ const Shorts = () => {
               <button
                 type="button"
                 aria-label="Next short"
-                disabled={index >= videos.length - 1}
+                disabled={index >= feed.length - 1}
                 onClick={() => goTo(index + 1)}
                 className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-card-2 text-white transition hover:bg-white/15 disabled:cursor-default disabled:opacity-30"
               >
