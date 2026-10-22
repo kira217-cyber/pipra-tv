@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListFilter, MessageSquareOff, Pencil, Pin, ThumbsUp, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, Gift, Heart, ListFilter, MessageSquareOff, Pencil, Pin, ThumbsUp, Trash2 } from "lucide-react";
 
 import { Avatar, Spinner } from "../ui/ui";
+import GiftPanel, { GiftBadge } from "./GiftPanel";
 import {
   addComment,
   deleteComment,
@@ -22,8 +23,10 @@ import { toast, confirmDialog } from "../../utils/alerts";
 
 const client = () => (localStorage.getItem(TOKEN_KEY) ? studioApi : api);
 
-// Text box that grows into "Cancel / Comment" once focused.
-const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "", onSubmit, onCancel, compact }) => {
+// Text box that grows into "Cancel / Comment" once focused. `onGift`
+// (the main box only) adds the "গিফট পাঠান" button; it gets the text typed
+// so far and a function that clears the box once the gift is sent.
+const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "", onSubmit, onCancel, compact, onGift }) => {
   const { user, channel } = useAuth();
   const requireSignIn = useRequireSignIn();
   const [text, setText] = useState(initial);
@@ -63,27 +66,46 @@ const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "
           }}
           className="w-full resize-none border-b border-white/20 bg-transparent pb-1 text-sm text-white outline-none placeholder:text-muted focus:border-white"
         />
-        {active && (
-          <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setText(initial);
-                setActive(false);
-                onCancel?.();
-              }}
-              className="cursor-pointer rounded-full px-4 py-2 text-sm font-semibold hover:bg-white/10"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!text.trim() || busy}
-              onClick={submit}
-              className="cursor-pointer rounded-full bg-[#3ea6ff] px-4 py-2 text-sm font-semibold text-black disabled:cursor-default disabled:bg-white/10 disabled:text-muted"
-            >
-              {submitLabel}
-            </button>
+        {(active || onGift) && (
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {onGift && (
+              <button
+                type="button"
+                onClick={() =>
+                  requireSignIn("Sign in to send gifts") &&
+                  onGift(text.trim(), () => {
+                    setText("");
+                    setActive(false);
+                  })
+                }
+                className="mr-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-[#ff2d6f]/50 px-4 py-2 text-sm font-semibold text-[#ff6b9a] hover:bg-[#ff2d6f]/10"
+              >
+                <Gift className="h-4 w-4" /> গিফট পাঠান
+              </button>
+            )}
+            {active && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setText(initial);
+                    setActive(false);
+                    onCancel?.();
+                  }}
+                  className="cursor-pointer rounded-full px-4 py-2 text-sm font-semibold hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!text.trim() || busy}
+                  onClick={submit}
+                  className="cursor-pointer rounded-full bg-[#3ea6ff] px-4 py-2 text-sm font-semibold text-black disabled:cursor-default disabled:bg-white/10 disabled:text-muted"
+                >
+                  {submitLabel}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -106,7 +128,7 @@ const ExpandableText = ({ text }) => {
   );
 };
 
-const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved, onReplyAdded, isReply }) => {
+const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved, onReplyAdded, onGiftReply, isReply }) => {
   const requireSignIn = useRequireSignIn();
   const [item, setItem] = useState(comment);
   const [menu, setMenu] = useState(false);
@@ -114,6 +136,7 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
   const [replying, setReplying] = useState(false);
   const [replies, setReplies] = useState(null);
   const [showReplies, setShowReplies] = useState(false);
+  const [gifting, setGifting] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -211,8 +234,9 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
             />
           </div>
         ) : (
-          <div className="mt-0.5">
-            <ExpandableText text={item.text} />
+          <div className="mt-0.5 space-y-1.5">
+            {item.gift && <GiftBadge gift={item.gift} />}
+            {item.text && <ExpandableText text={item.text} />}
           </div>
         )}
 
@@ -236,7 +260,35 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
               Reply
             </button>
           )}
+          {!item.mine && (
+            <button
+              type="button"
+              onClick={() => requireSignIn("Sign in to send gifts") && setGifting(true)}
+              className="flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold text-white hover:bg-white/10"
+            >
+              <Gift className="h-4 w-4" /> গিফট
+            </button>
+          )}
         </div>
+
+        {gifting && (
+          <GiftPanel
+            videoId={videoId}
+            replyTo={item.id}
+            toName={name}
+            onClose={() => setGifting(false)}
+            onSent={(result) => {
+              // The gift arrives as a reply in this thread.
+              if (isReply) onGiftReply?.(result.comment);
+              else {
+                setReplies((list) => [...(list || []), result.comment]);
+                setShowReplies(true);
+                update({ replyCount: item.replyCount + 1 });
+              }
+              onReplyAdded?.();
+            }}
+          />
+        )}
 
         {replying && (
           <div className="mt-2">
@@ -277,6 +329,11 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
                 isOwner={isOwner}
                 creator={creator}
                 isReply
+                onGiftReply={(reply) => {
+                  setReplies((list) => [...(list || []), reply]);
+                  update({ replyCount: item.replyCount + 1 });
+                }}
+                onReplyAdded={onReplyAdded}
                 onRemoved={() => {
                   setReplies((list) => list.filter((r) => r.id !== reply.id));
                   update({ replyCount: Math.max(0, item.replyCount - 1) });
@@ -355,6 +412,8 @@ const Comments = ({ videoId, creator, onCountChange }) => {
   const [state, setState] = useState({ key: null, comments: [], page: 1, totalPages: 1, count: 0, allow: true, isOwner: false });
   const [sortOpen, setSortOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [gift, setGift] = useState(null); // { text, clear } while the gift panel is open
+  const closeGift = useCallback(() => setGift(null), []);
   const key = `${videoId}|${sort}`;
 
   const load = useCallback(
@@ -436,6 +495,7 @@ const Comments = ({ videoId, creator, onCountChange }) => {
         <div className="mt-5">
           <Composer
             placeholder="Add a comment…"
+            onGift={(text, clear) => setGift({ text, clear })}
             onSubmit={async (text) => {
               try {
                 const result = await addComment(videoId, text);
@@ -452,6 +512,20 @@ const Comments = ({ videoId, creator, onCountChange }) => {
         <p className="mt-5 flex items-center gap-2 text-sm text-muted">
           <MessageSquareOff className="h-5 w-5" /> Comments are turned off.
         </p>
+      )}
+
+      {gift && (
+        <GiftPanel
+          videoId={videoId}
+          toName={creator?.name}
+          text={gift.text}
+          onClose={closeGift}
+          onSent={(result) => {
+            gift.clear();
+            setState((s) => ({ ...s, comments: [result.comment, ...s.comments] }));
+            setCount(state.count + 1);
+          }}
+        />
       )}
 
       <div className="mt-6 space-y-6">

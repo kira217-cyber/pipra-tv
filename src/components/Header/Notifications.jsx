@@ -27,12 +27,15 @@ const describe = (n) => {
       return `${who} loved your comment: "${n.text}"`;
     case "subscriber":
       return `${who} subscribed to your channel`;
+    case "gift_received":
+      return `${who} ${n.text}`;
     default:
       return n.text;
   }
 };
 
 const linkFor = (n) => {
+  if (n.type === "coins_added") return "/coins";
   if (n.video?.id) return `/watch/${n.video.id}`;
   if (n.channel?.handle) return `/@${n.channel.handle}`;
   return "/";

@@ -28,6 +28,8 @@ export const deleteComment = (id) => data(studioApi.delete(`/api/comments/${id}`
 export const likeComment = (id) => data(studioApi.post(`/api/comments/${id}/like`, {}));
 export const pinComment = (id) => data(studioApi.post(`/api/comments/${id}/pin`, {}));
 export const heartComment = (id) => data(studioApi.post(`/api/comments/${id}/heart`, {}));
+// Pays coins and posts the gift as a comment (or, with replyTo, a reply).
+export const sendGift = ({ videoId, giftId, text, replyTo }) => tracked("Sent a gift", studioApi.post("/api/gifts/send", { videoId, giftId, text, replyTo }));
 
 export const myPlaylists = (videoId) => data(studioApi.get("/api/me/playlists", { params: { video: videoId } }));
 export const togglePlaylistVideo = (playlistId, videoId, add) =>
