@@ -2,6 +2,7 @@ import {
   BarChart3,
   CircleDollarSign,
   Clapperboard,
+  Coins,
   History,
   House,
   Library,
@@ -42,6 +43,7 @@ export const CREATOR_MENU = [
 ];
 
 export const SETTINGS_MENU = [
+  { label: "My coins", to: "/coins", icon: Coins, color: "#f59e0b", gradient: ["#fde68a", "#d97706"] },
   { label: "Customize channel", to: "/customize", studio: true, icon: Palette, color: "#db2777", gradient: ["#f9a8d4", "#be185d"] },
   { label: "Account", to: "/profile", studio: true, icon: UserRound, color: "#2f86e6", gradient: ["#93c5fd", "#1d4ed8"] },
   { label: "Verified Identity", to: "/verify", studio: true, icon: ShieldCheck, color: "#16a34a", gradient: ["#6ee7b7", "#047857"] },

@@ -17,8 +17,8 @@ const Search = lazy(() => import("../pages/Search/Search"));
 const Login = lazy(() => import("../pages/Auth/Login"));
 const Register = lazy(() => import("../pages/Auth/Register"));
 const Handoff = lazy(() => import("../pages/Auth/Handoff"));
-const CopyCode = lazy(() => import("../pages/Auth/CopyCode"));
 const InfoPage = lazy(() => import("../pages/InfoPage/InfoPage"));
+const CoinsPage = lazy(() => import("../pages/Coins/Coins"));
 import NotFound from "../pages/NotFound/NotFound";
 
 const libraryPage = (name) => lazy(() => import("../pages/Library/Library").then((module) => ({ default: module[name] })));
@@ -50,8 +50,6 @@ export const router = createBrowserRouter([
       { path: "search", element: <Search /> },
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
-      // The "Copy code" button in the verification email.
-      { path: "copy-code", element: <CopyCode /> },
       // Arriving from PipraTube Studio with a one-time sign-in code.
       { path: "sso", element: <Handoff /> },
       { path: "you", element: signedIn(<You />) },
@@ -59,6 +57,8 @@ export const router = createBrowserRouter([
       { path: "feed/history", element: signedIn(<History />) },
       { path: "feed/liked", element: signedIn(<Liked />) },
       { path: "playlist/:id", element: <PlaylistPage /> },
+      // Coin wallet and buying coins (OraclePay).
+      { path: "coins", element: signedIn(<CoinsPage />) },
       // About, Contact, Terms, Privacy… (written in the admin panel)
       { path: "page/:slug", element: <InfoPage /> },
 
