@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 import { ChevronRight, Eye, EyeOff, Info, Loader2 } from "lucide-react";
 
+import { BadgeMark } from "./UserBadge";
+
 import logo from "../../assets/pipratube-logo.webp";
 import icon from "../../assets/pipratube-icon.png";
 import { useSiteSettings } from "../../hooks/useSiteSettings";
@@ -142,19 +144,29 @@ export const GhostButton = ({ className = "", children, ...rest }) => (
 );
 
 // Round avatar with the brand ring used for channels and the creator.
-export const Avatar = ({ src, name, size = "h-12 w-12", ring = true }) => (
-  <span
-    className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-black ${size} ${
-      ring ? "ring-2 ring-brand ring-offset-2 ring-offset-page" : ""
-    }`}
-  >
-    {src ? (
-      <img src={src} alt={name || ""} className="h-full w-full object-cover" draggable={false} />
-    ) : (
-      <span className="text-sm font-bold uppercase text-brand">{(name || "P").slice(0, 2)}</span>
-    )}
-  </span>
-);
+// `badge`: one an admin gave (VIP, Top Contributor…), shown on the corner.
+export const Avatar = ({ src, name, size = "h-12 w-12", ring = true, badge }) => {
+  const picture = (
+    <span
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-black ${badge ? "h-full w-full" : size} ${
+        ring ? "ring-2 ring-brand ring-offset-2 ring-offset-page" : ""
+      }`}
+    >
+      {src ? (
+        <img src={src} alt={name || ""} className="h-full w-full object-cover" draggable={false} />
+      ) : (
+        <span className="text-sm font-bold uppercase text-brand">{(name || "P").slice(0, 2)}</span>
+      )}
+    </span>
+  );
+  if (!badge) return picture;
+  return (
+    <span className={`relative inline-flex shrink-0 ${size}`}>
+      {picture}
+      <BadgeMark badge={badge} />
+    </span>
+  );
+};
 
 export const Field = ({ label, icon: Icon, required, children }) => (
   <label className="block">

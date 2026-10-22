@@ -6,6 +6,8 @@ import { Avatar, Spinner } from "../ui/ui";
 import GiftPanel, { GiftBadge } from "./GiftPanel";
 import { CommentImage, ImagePickButton, ImagePreview, VoicePlayer, VoiceRecorder } from "./CommentMedia";
 import { useCommentSettings } from "../../hooks/useCommentSettings";
+import ContributorBadges from "./ContributorBadges";
+import { BadgeLabel } from "../ui/UserBadge";
 import {
   addComment,
   deleteComment,
@@ -64,7 +66,7 @@ const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "
   const showRow = active || onGift || canVoice || canImage;
   return (
     <div className="flex gap-3">
-      {!compact && <Avatar src={channel?.avatar || user?.avatar} name={channel?.name || user?.name || "?"} size="h-10 w-10" ring={false} />}
+      {!compact && <Avatar src={channel?.avatar || user?.avatar} name={channel?.name || user?.name || "?"} size="h-10 w-10" ring={false} badge={channel?.badge || user?.badge} />}
       <div className="min-w-0 flex-1">
         <textarea
           rows={1}
@@ -235,10 +237,10 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
     <div className="flex gap-3">
       {authorTo ? (
         <Link to={authorTo} className="shrink-0">
-          <Avatar src={author.avatar} name={author.name} size={isReply ? "h-7 w-7" : "h-10 w-10"} ring={false} />
+          <Avatar src={author.avatar} name={author.name} size={isReply ? "h-7 w-7" : "h-10 w-10"} ring={false} badge={author.badge} />
         </Link>
       ) : (
-        <Avatar src={author.avatar} name={author.name} size={isReply ? "h-7 w-7" : "h-10 w-10"} ring={false} />
+        <Avatar src={author.avatar} name={author.name} size={isReply ? "h-7 w-7" : "h-10 w-10"} ring={false} badge={author.badge} />
       )}
 
       <div className="min-w-0 flex-1">
@@ -249,6 +251,8 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
         )}
         <p className="flex flex-wrap items-center gap-x-1.5 text-[13px]">
           <span className={item.isCreator ? "rounded-full bg-white/15 px-2 font-semibold text-white" : "font-semibold text-white"}>{name}</span>
+          <BadgeLabel badge={author.badge} />
+          <ContributorBadges badges={author.badges} />
           <span className="text-muted">
             {timeAgo(item.createdAt)}
             {item.edited ? " (edited)" : ""}

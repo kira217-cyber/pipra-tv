@@ -37,6 +37,7 @@ const Search = () => {
                 key={channel.id}
                 name={channel.name}
                 logo={channel.avatar}
+                badge={channel.badge}
                 to={channelPath(channel)}
                 className={railItemClass}
               />

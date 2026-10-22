@@ -231,7 +231,7 @@ const WatchBody = ({ video, viewer }) => {
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Link to={channelPath(channel)} className="flex min-w-0 items-center gap-3">
-            <Avatar src={channel?.avatar} name={channel?.name} size="h-10 w-10" ring={false} />
+            <Avatar src={channel?.avatar} name={channel?.name} size="h-10 w-10" ring={false} badge={channel?.badge} />
             <span className="min-w-0">
               <span className="flex items-center gap-1 font-semibold text-white">
                 <span className="truncate">{channel?.name}</span>

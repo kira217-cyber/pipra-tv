@@ -36,7 +36,7 @@ const FeedCard = ({ video, eager = false }) => {
 
       <div className="mt-3 flex gap-3">
         <Link to={channelPath(video.channel)} className="shrink-0">
-          <Avatar src={video.channel?.avatar} name={video.channel?.name} size="h-10 w-10" ring={false} />
+          <Avatar src={video.channel?.avatar} name={video.channel?.name} size="h-10 w-10" ring={false} badge={video.channel?.badge} />
         </Link>
         <Link to={to} className="min-w-0 flex-1">
           <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-white sm:text-base">{video.title}</h3>

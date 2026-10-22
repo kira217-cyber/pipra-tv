@@ -5,6 +5,7 @@ import { ArrowLeft, BadgeCheck, ChevronRight, Clapperboard, Globe, Info, Link2, 
 
 import { VideoGrid, VideoRail } from "../../components/VideoCard/VideoCard";
 import { Avatar, Chips, EmptyState, Logo, Spinner } from "../../components/ui/ui";
+import { BadgeLabel } from "../../components/ui/UserBadge";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import SubscribeButton from "../../components/SubscribeButton/SubscribeButton";
@@ -344,11 +345,12 @@ const Channel = ({ handle }) => {
       <Banner url={channel.banner} />
 
       <div className="mt-4 flex items-center gap-4 sm:mt-6 sm:items-start sm:gap-6">
-        <Avatar src={channel.avatar} name={channel.name} size="h-[72px] w-[72px] sm:h-40 sm:w-40" ring={false} />
+        <Avatar src={channel.avatar} name={channel.name} size="h-[72px] w-[72px] sm:h-40 sm:w-40" ring={false} badge={channel.badge} />
         <div className="min-w-0 flex-1">
           <h1 className="flex items-center gap-2 text-2xl font-bold leading-tight sm:text-4xl">
             <span className="truncate">{channel.name}</span>
             {channel.verified && <BadgeCheck className="h-5 w-5 shrink-0 fill-muted text-page sm:h-6 sm:w-6" />}
+            <BadgeLabel badge={channel.badge} className="sm:text-xs" />
           </h1>
           <p className="mt-1 text-sm text-muted sm:mt-2">
             <span className="font-semibold text-white">@{channel.handle}</span>

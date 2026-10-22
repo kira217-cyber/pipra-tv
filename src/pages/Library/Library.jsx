@@ -48,7 +48,7 @@ export const You = () => {
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
-        <Avatar src={channel?.avatar || user.avatar} name={channel?.name || user.name} size="h-20 w-20" ring={false} />
+        <Avatar src={channel?.avatar || user.avatar} name={channel?.name || user.name} size="h-20 w-20" ring={false} badge={channel?.badge || user.badge} />
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-bold">{channel?.name || user.name}</h1>
           <p className="text-sm text-muted">
@@ -106,7 +106,7 @@ export const SubscriptionsFeed = () => {
       {channels.length > 0 && (
         <ChannelRail>
           {channels.map((channel) => (
-            <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} to={channelPath(channel)} className={railItemClass} />
+            <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} badge={channel.badge} to={channelPath(channel)} className={railItemClass} />
           ))}
         </ChannelRail>
       )}

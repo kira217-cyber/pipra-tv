@@ -188,7 +188,7 @@ export const FeaturedVideo = ({ video }) => (
 
     <div className="mt-3 flex gap-3">
       <Link to={channelPath(video.channel)}>
-        <Avatar src={video.channel?.avatar} name={video.channel?.name} size="h-11 w-11" />
+        <Avatar src={video.channel?.avatar} name={video.channel?.name} size="h-11 w-11" badge={video.channel?.badge} />
       </Link>
       <Link to={`/watch/${videoId(video)}`} className="min-w-0 flex-1">
         <p className="line-clamp-2 text-base font-semibold text-white sm:text-lg">{video.title}</p>

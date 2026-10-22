@@ -75,7 +75,7 @@ const ProfileCard = ({ onNavigate }) => {
     return (
       <div className="rounded-2xl border border-brand/20 bg-gradient-to-br from-[#3a0d1f] to-card p-4">
         <div className="flex items-center gap-3">
-          <Avatar src={user.avatar} name={user.name} size="h-12 w-12" ring={false} />
+          <Avatar src={user.avatar} name={user.name} size="h-12 w-12" ring={false} badge={user.badge} />
           <span className="min-w-0">
             <span className="block truncate font-bold text-white">{user.name}</span>
             <span className="block truncate text-xs text-muted">{user.email || user.phone}</span>
@@ -101,7 +101,7 @@ const ProfileCard = ({ onNavigate }) => {
       onClick={onNavigate}
       className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-gradient-to-br from-[#3a0d1f] to-card p-4"
     >
-      <Avatar src={channel.avatar} name={channel.name} size="h-14 w-14" />
+      <Avatar src={channel.avatar} name={channel.name} size="h-14 w-14" badge={channel.badge || user?.badge} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-lg font-bold text-white">{channel.name}</span>
         <span className="block truncate text-sm text-muted">@{channel.handle}</span>

@@ -77,7 +77,7 @@ const Header = ({ onMenu }) => {
 
         {user ? (
           <StudioLink to={channel ? "/" : "/profile"} className="ml-1 hidden lg:block" aria-label="Your account">
-            <Avatar src={channel?.avatar || user.avatar} name={channel?.name || user.name} size="h-9 w-9" />
+            <Avatar src={channel?.avatar || user.avatar} name={channel?.name || user.name} size="h-9 w-9" badge={channel?.badge || user.badge} />
           </StudioLink>
         ) : (
           <Link

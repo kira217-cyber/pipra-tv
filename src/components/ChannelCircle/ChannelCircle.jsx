@@ -4,10 +4,12 @@ import { Radio } from "lucide-react";
 
 import { useRailGestures } from "../../hooks/useRailGestures";
 import { IMG, mediaUrl } from "../../utils/format";
+import { BadgeMark } from "../ui/UserBadge";
 
 // Round channel avatar used for Live TV channels and creator channels.
 // Pass `to` for a link, or `onClick` to act as a selector (Live TV page).
-const ChannelCircle = ({ name, logo, to, onClick, active, live, className = "" }) => {
+// `badge`: one an admin gave the channel's owner (VIP…), on the corner.
+const ChannelCircle = ({ name, logo, to, onClick, active, live, badge, className = "" }) => {
   const inner = (
     <>
       <span
@@ -30,6 +32,7 @@ const ChannelCircle = ({ name, logo, to, onClick, active, live, className = "" }
             <Radio className="h-6 w-6 text-brand" />
           )}
         </span>
+        {badge && <BadgeMark badge={badge} />}
         {live && (
           <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-live px-1.5 text-[10px] font-bold leading-4 text-white">
             LIVE
