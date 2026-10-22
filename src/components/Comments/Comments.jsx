@@ -4,6 +4,8 @@ import { ChevronDown, ChevronUp, EllipsisVertical, Gift, Heart, ListFilter, Mess
 
 import { Avatar, Spinner } from "../ui/ui";
 import GiftPanel, { GiftBadge } from "./GiftPanel";
+import { CommentImage, ImagePickButton, ImagePreview, VoicePlayer, VoiceRecorder } from "./CommentMedia";
+import { useCommentSettings } from "../../hooks/useCommentSettings";
 import {
   addComment,
   deleteComment,
@@ -23,28 +25,43 @@ import { toast, confirmDialog } from "../../utils/alerts";
 
 const client = () => (localStorage.getItem(TOKEN_KEY) ? studioApi : api);
 
-// Text box that grows into "Cancel / Comment" once focused. `onGift`
-// (the main box only) adds the "গিফট পাঠান" button; it gets the text typed
-// so far and a function that clears the box once the gift is sent.
-const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "", onSubmit, onCancel, compact, onGift }) => {
+// Text box that grows into "Cancel / Comment" once focused. With `media`
+// (the admin's comment settings) it can also carry a voice recording and a
+// picture; onSubmit gets (text, { voice, image }). `onGift` (the main box
+// only) adds the "গিফট পাঠান" button; it gets the text typed so far and a
+// function that clears the box once the gift is sent.
+const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "", onSubmit, onCancel, compact, onGift, media }) => {
   const { user, channel } = useAuth();
   const requireSignIn = useRequireSignIn();
   const [text, setText] = useState(initial);
   const [active, setActive] = useState(Boolean(autoFocus || initial));
   const [busy, setBusy] = useState(false);
+  const [voice, setVoice] = useState(null); // { blob, seconds, peaks }
+  const [image, setImage] = useState(null); // File
+  const [recording, setRecording] = useState(false);
+  const canVoice = Boolean(user && media?.voice?.enabled);
+  const canImage = Boolean(user && media?.image?.enabled);
+  const hasContent = Boolean(text.trim() || voice || image);
+
+  const reset = () => {
+    setText("");
+    setVoice(null);
+    setImage(null);
+    setActive(false);
+  };
 
   const submit = async () => {
-    if (!text.trim()) return;
+    if (!hasContent || recording) return;
     setBusy(true);
     try {
-      await onSubmit(text.trim());
-      setText("");
-      setActive(false);
+      await onSubmit(text.trim(), { voice, image });
+      reset();
     } finally {
       setBusy(false);
     }
   };
 
+  const showRow = active || onGift || canVoice || canImage;
   return (
     <div className="flex gap-3">
       {!compact && <Avatar src={channel?.avatar || user?.avatar} name={channel?.name || user?.name || "?"} size="h-10 w-10" ring={false} />}
@@ -66,29 +83,51 @@ const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "
           }}
           className="w-full resize-none border-b border-white/20 bg-transparent pb-1 text-sm text-white outline-none placeholder:text-muted focus:border-white"
         />
-        {(active || onGift) && (
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {onGift && (
-              <button
-                type="button"
-                onClick={() =>
-                  requireSignIn("Sign in to send gifts") &&
-                  onGift(text.trim(), () => {
-                    setText("");
-                    setActive(false);
-                  })
-                }
-                className="mr-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-[#ff2d6f]/50 px-4 py-2 text-sm font-semibold text-[#ff6b9a] hover:bg-[#ff2d6f]/10"
-              >
-                <Gift className="h-4 w-4" /> গিফট পাঠান
-              </button>
-            )}
-            {active && (
-              <>
+        {image && (
+          <div className="mt-2">
+            <ImagePreview file={image} onRemove={() => setImage(null)} />
+          </div>
+        )}
+        {showRow && (
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+            <div className="mr-auto flex min-w-0 flex-wrap items-center gap-2">
+              {canImage && !image && (
+                <ImagePickButton
+                  onPick={(file) => {
+                    setImage(file);
+                    setActive(true);
+                  }}
+                />
+              )}
+              {canVoice && (
+                <VoiceRecorder
+                  maxSeconds={media.voice.maxSeconds}
+                  value={voice}
+                  onRecordingChange={(on) => {
+                    setRecording(on);
+                    if (on) setActive(true);
+                  }}
+                  onChange={setVoice}
+                />
+              )}
+              {onGift && (
+                <button
+                  type="button"
+                  onClick={() => requireSignIn("Sign in to send gifts") && onGift(text.trim(), reset)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-full border border-[#ff2d6f]/50 px-4 py-2 text-sm font-semibold text-[#ff6b9a] hover:bg-[#ff2d6f]/10"
+                >
+                  <Gift className="h-4 w-4" /> গিফট পাঠান
+                </button>
+              )}
+            </div>
+            {(active || hasContent) && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setText(initial);
+                    setVoice(null);
+                    setImage(null);
                     setActive(false);
                     onCancel?.();
                   }}
@@ -98,13 +137,13 @@ const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "
                 </button>
                 <button
                   type="button"
-                  disabled={!text.trim() || busy}
+                  disabled={!hasContent || busy || recording}
                   onClick={submit}
                   className="cursor-pointer rounded-full bg-[#3ea6ff] px-4 py-2 text-sm font-semibold text-black disabled:cursor-default disabled:bg-white/10 disabled:text-muted"
                 >
-                  {submitLabel}
+                  {busy ? "Sending…" : submitLabel}
                 </button>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -128,7 +167,7 @@ const ExpandableText = ({ text }) => {
   );
 };
 
-const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved, onReplyAdded, onGiftReply, isReply }) => {
+const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onRemoved, onReplyAdded, onGiftReply, isReply }) => {
   const requireSignIn = useRequireSignIn();
   const [item, setItem] = useState(comment);
   const [menu, setMenu] = useState(false);
@@ -236,7 +275,9 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
         ) : (
           <div className="mt-0.5 space-y-1.5">
             {item.gift && <GiftBadge gift={item.gift} />}
+            {item.voice && <VoicePlayer voice={item.voice} />}
             {item.text && <ExpandableText text={item.text} />}
+            {item.image && <CommentImage src={item.image} />}
           </div>
         )}
 
@@ -297,9 +338,10 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
               autoFocus
               placeholder="Add a reply…"
               submitLabel="Reply"
+              media={media}
               onCancel={() => setReplying(false)}
-              onSubmit={async (text) => {
-                const result = await run(() => addComment(videoId, text, item.id));
+              onSubmit={async (text, attached) => {
+                const result = await run(() => addComment(videoId, text, item.id, attached));
                 if (result) {
                   setReplies((list) => [...(list || []), result.comment]);
                   setShowReplies(true);
@@ -328,6 +370,7 @@ const CommentItem = ({ comment, videoId, isOwner, creator, onChanged, onRemoved,
                 videoId={videoId}
                 isOwner={isOwner}
                 creator={creator}
+                media={media}
                 isReply
                 onGiftReply={(reply) => {
                   setReplies((list) => [...(list || []), reply]);
@@ -414,6 +457,7 @@ const Comments = ({ videoId, creator, onCountChange }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [gift, setGift] = useState(null); // { text, clear } while the gift panel is open
   const closeGift = useCallback(() => setGift(null), []);
+  const media = useCommentSettings();
   const key = `${videoId}|${sort}`;
 
   const load = useCallback(
@@ -496,9 +540,10 @@ const Comments = ({ videoId, creator, onCountChange }) => {
           <Composer
             placeholder="Add a comment…"
             onGift={(text, clear) => setGift({ text, clear })}
-            onSubmit={async (text) => {
+            media={media}
+            onSubmit={async (text, attached) => {
               try {
-                const result = await addComment(videoId, text);
+                const result = await addComment(videoId, text, undefined, attached);
                 setState((s) => ({ ...s, comments: [result.comment, ...s.comments] }));
                 setCount(state.count + 1);
               } catch (error) {
@@ -538,6 +583,7 @@ const Comments = ({ videoId, creator, onCountChange }) => {
             videoId={videoId}
             isOwner={state.isOwner}
             creator={creator}
+            media={media}
             onChanged={(next, options) => {
               if (options?.refresh) refresh();
               else setState((s) => ({ ...s, comments: s.comments.map((c) => (c.id === next.id ? next : c)) }));
