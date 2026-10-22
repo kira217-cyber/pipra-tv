@@ -47,11 +47,15 @@ const Register = () => {
   const [codeSentTo, setCodeSentTo] = useState("");
   const [wait, setWait] = useState(0);
   const [refInput, setRefInput] = useState(() => rememberedRef(new URLSearchParams(location.search).get("ref")?.trim() || ""));
+  // A code that came with the invite link stays fixed once it's valid; a
+  // code typed by hand (or a link code that isn't valid) can be changed.
+  const [linkCode] = useState(() => refInput.trim().toUpperCase());
   const ref = refInput.trim().toUpperCase();
   // { code, inviter } once a code has been checked (inviter null = not valid).
   const [refCheck, setRefCheck] = useState({ code: "", inviter: null });
   const inviter = ref && refCheck.code === ref ? refCheck.inviter : null;
   const refState = !ref ? "none" : refCheck.code !== ref ? "checking" : inviter ? "ok" : "bad";
+  const refLocked = Boolean(linkCode) && ref === linkCode && refState !== "bad";
 
   useEffect(() => {
     if (!ref) return undefined;
@@ -228,12 +232,14 @@ const Register = () => {
         <Field label="Referral code (optional)" icon={Gift}>
           <input
             value={refInput}
+            readOnly={refLocked}
             onChange={(event) => setRefInput(event.target.value.replace(/\s+/g, "").toUpperCase())}
             placeholder="e.g. PTAB12CD"
             maxLength={20}
-            className={`${inputClass} font-mono tracking-wider`}
+            className={`${inputClass} font-mono tracking-wider ${refLocked ? "cursor-not-allowed opacity-80" : ""}`}
             autoComplete="off"
           />
+          {refLocked && <Lock className="h-4 w-4 shrink-0 text-muted" aria-label="From your invite link" />}
         </Field>
         {refState === "checking" && <p className="-mt-2 text-xs text-muted">Checking the code…</p>}
         {refState === "ok" && (
