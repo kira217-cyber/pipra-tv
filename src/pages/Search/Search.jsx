@@ -38,6 +38,7 @@ const Search = () => {
                 name={channel.name}
                 logo={channel.avatar}
                 badge={channel.badge}
+                verified={channel.verified}
                 to={channelPath(channel)}
                 className={railItemClass}
               />

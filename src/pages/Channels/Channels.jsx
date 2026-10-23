@@ -82,7 +82,7 @@ const Channels = () => {
         <>
           <div className="grid grid-cols-3 gap-5 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9">
             {state.channels.map((channel) => (
-              <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} badge={channel.badge} to={channelPath(channel)} />
+              <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} badge={channel.badge} verified={channel.verified} to={channelPath(channel)} />
             ))}
           </div>
           {state.page < state.totalPages && (

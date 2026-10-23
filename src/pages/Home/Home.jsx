@@ -314,7 +314,7 @@ const Home = () => {
           <SectionHeader title="Channels to watch" to="/channels" />
           <ChannelRail>
             {channels.map((channel) => (
-              <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} badge={channel.badge} to={channelPath(channel)} className={railItemClass} />
+              <ChannelCircle key={channel.id} name={channel.name} logo={channel.avatar} badge={channel.badge} verified={channel.verified} to={channelPath(channel)} className={railItemClass} />
             ))}
           </ChannelRail>
         </section>

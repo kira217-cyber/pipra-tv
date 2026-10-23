@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { Link } from "react-router";
-import { Radio } from "lucide-react";
+import { BadgeCheck, Radio } from "lucide-react";
 
 import { useRailGestures } from "../../hooks/useRailGestures";
 import { IMG, mediaUrl } from "../../utils/format";
@@ -9,7 +9,8 @@ import { BadgeMark } from "../ui/UserBadge";
 // Round channel avatar used for Live TV channels and creator channels.
 // Pass `to` for a link, or `onClick` to act as a selector (Live TV page).
 // `badge`: one an admin gave the channel's owner (VIP…), on the corner.
-const ChannelCircle = ({ name, logo, to, onClick, active, live, badge, className = "" }) => {
+// `verified`: the blue tick after the name.
+const ChannelCircle = ({ name, logo, to, onClick, active, live, badge, verified, className = "" }) => {
   const inner = (
     <>
       <span
@@ -40,11 +41,12 @@ const ChannelCircle = ({ name, logo, to, onClick, active, live, badge, className
         )}
       </span>
       <span
-        className={`mt-2 block w-full truncate text-center text-xs font-medium sm:text-sm ${
+        className={`mt-2 flex w-full items-center justify-center gap-1 text-xs font-medium sm:text-sm ${
           active ? "text-brand" : "text-slate-300 group-hover:text-white"
         }`}
       >
-        {name}
+        <span className="truncate">{name}</span>
+        {verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
       </span>
     </>
   );
