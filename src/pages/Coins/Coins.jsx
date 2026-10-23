@@ -1,33 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
-import { CheckCircle2, Clock, Coins as CoinsIcon, Gift, Loader2, ShoppingBag, Sparkles, XCircle } from "lucide-react";
+import { Link, useSearchParams } from "react-router";
+import { Coins as CoinsIcon, Gift, History, Loader2, ShoppingBag, Sparkles, XCircle } from "lucide-react";
 
 import { Card, Chips, EmptyState, PageHeader, Spinner } from "../../components/ui/ui";
 import { apiError, studioApi } from "../../api/studioApi";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { CoinMark, PackGrid } from "../../components/CoinShop/CoinShop";
-import { timeAgo } from "../../utils/format";
+import { HistoryRows, PurchaseCelebration } from "../../components/CoinShop/CoinHistory";
 import { toast } from "../../utils/alerts";
 
 // My coins: the viewer's wallet, buying coins (OraclePay's payment page —
 // bKash, Nagad …), and what happened to their coins. Coins are spent on
 // gifts for creators.
 
-const number = (n) => Number(n || 0).toLocaleString("en-US");
-const KIND = {
-  purchase: "Bought coins",
-  gift_sent: "Sent a gift",
-  gift_received: "Received a gift",
-  referral: "Referral reward",
-  convert: "Turned into money",
-  admin: "Changed by PipraTube",
-};
-const PURCHASE = {
-  PAID: { icon: CheckCircle2, className: "text-[#4ade80]", label: "Paid" },
-  PENDING: { icon: Clock, className: "text-amber-300", label: "Waiting" },
-  FAILED: { icon: XCircle, className: "text-[#ff6b81]", label: "Not paid" },
-};
-
+const number = (n) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 const Coins = () => {
   useDocumentTitle("My coins");
@@ -82,17 +68,20 @@ const Coins = () => {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader title="My coins" subtitle="Buy coins and send gifts to the creators you love" />
+      <PageHeader title="My coins" subtitle="Buy coins and send gifts to the creators you love">
+        <Link to="/coins/history" className="flex items-center gap-1.5 rounded-xl border border-line px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
+          <History className="h-4 w-4" /> History
+        </Link>
+      </PageHeader>
 
-      {paidInvoice && (
-        <Card className={`flex items-center gap-3 p-4 ${thisPurchase?.status === "PAID" ? "border-emerald-500/40 bg-emerald-500/10" : "border-amber-400/40 bg-amber-400/5"}`}>
-          {thisPurchase?.status === "PAID" ? <CheckCircle2 className="h-7 w-7 text-[#4ade80]" /> : <Loader2 className="h-7 w-7 animate-spin text-amber-300" />}
+      {thisPurchase?.status === "PAID" && <PurchaseCelebration purchase={thisPurchase} onClose={() => setParams({}, { replace: true })} />}
+      {paidInvoice && thisPurchase?.status !== "PAID" && (
+        <Card className={`flex items-center gap-3 p-4 ${thisPurchase?.status === "FAILED" ? "border-[#ff6b81]/40 bg-[#ff6b81]/5" : "border-amber-400/40 bg-amber-400/5"}`}>
+          {thisPurchase?.status === "FAILED" ? <XCircle className="h-7 w-7 text-[#ff6b81]" /> : <Loader2 className="h-7 w-7 animate-spin text-amber-300" />}
           <p className="flex-1 text-sm">
-            {thisPurchase?.status === "PAID"
-              ? `${number(thisPurchase.coins)} coins were added to your wallet. Thank you!`
-              : thisPurchase?.status === "FAILED"
-                ? "This payment didn't go through, so no coins were added."
-                : "Checking your payment — the coins appear here as soon as it's confirmed."}
+            {thisPurchase?.status === "FAILED"
+              ? "This payment didn't go through, so no coins were added."
+              : "Checking your payment — the coins appear here as soon as it's confirmed."}
           </p>
           <button type="button" onClick={() => setParams({}, { replace: true })} className="cursor-pointer text-xs text-muted hover:text-white">
             Close
@@ -142,65 +131,21 @@ const Coins = () => {
       </section>
 
       <section>
-        <Chips
-          items={[
-            { value: "activity", label: "Coin activity" },
-            { value: "purchases", label: "Purchases" },
-          ]}
-          value={tab}
-          onChange={setTab}
-          className="mb-3"
-        />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <Chips
+            items={[
+              { value: "activity", label: "Coin activity" },
+              { value: "purchases", label: "Purchases" },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+          <Link to="/coins/history" className="text-sm font-semibold text-[#3ea6ff] hover:underline">
+            See full history →
+          </Link>
+        </div>
         <Card className="divide-y divide-line">
-          {tab === "activity" &&
-            (wallet.entries.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted">No coin activity yet.</p>
-            ) : (
-              wallet.entries.map((e) => {
-                const change = e.purchased + e.earned;
-                return (
-                  <div key={e.id} className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">{KIND[e.kind] || e.kind}</p>
-                      <p className="truncate text-xs text-muted">
-                        {timeAgo(e.at)}
-                        {e.note && e.kind !== "purchase" ? ` · ${e.note}` : ""}
-                      </p>
-                    </div>
-                    <span className={`font-bold ${change >= 0 ? "text-[#4ade80]" : "text-[#ff6b81]"}`}>
-                      {change >= 0 ? "+" : ""}
-                      {number(change)}
-                    </span>
-                  </div>
-                );
-              })
-            ))}
-          {tab === "purchases" &&
-            (wallet.purchases.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted">No purchases yet.</p>
-            ) : (
-              wallet.purchases.map((p) => {
-                const st = PURCHASE[p.status];
-                const Icon = st.icon;
-                return (
-                  <div key={p.id} className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">
-                        {number(p.coins)} coins · ${p.price}
-                        {p.bdtAmount > 0 && <span className="font-normal text-muted"> (৳{number(p.bdtAmount)})</span>}
-                      </p>
-                      <p className="truncate text-xs text-muted">
-                        {timeAgo(p.createdAt)}
-                        {p.transactionId && ` · ${p.transactionId}`}
-                      </p>
-                    </div>
-                    <span className={`flex items-center gap-1 text-xs font-bold ${st.className}`}>
-                      <Icon className="h-4 w-4" /> {st.label}
-                    </span>
-                  </div>
-                );
-              })
-            ))}
+          <HistoryRows type={tab} items={tab === "purchases" ? wallet.purchases : wallet.entries.slice(0, 10)} />
         </Card>
       </section>
     </div>

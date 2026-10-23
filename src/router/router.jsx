@@ -20,6 +20,7 @@ const ForgotPassword = lazy(() => import("../pages/Auth/ForgotPassword"));
 const Handoff = lazy(() => import("../pages/Auth/Handoff"));
 const InfoPage = lazy(() => import("../pages/InfoPage/InfoPage"));
 const CoinsPage = lazy(() => import("../pages/Coins/Coins"));
+const CoinHistoryPage = lazy(() => import("../pages/Coins/CoinHistory"));
 import NotFound from "../pages/NotFound/NotFound";
 
 const libraryPage = (name) => lazy(() => import("../pages/Library/Library").then((module) => ({ default: module[name] })));
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { path: "playlist/:id", element: <PlaylistPage /> },
       // Coin wallet and buying coins (OraclePay).
       { path: "coins", element: signedIn(<CoinsPage />) },
+      { path: "coins/history", element: signedIn(<CoinHistoryPage />) },
       // About, Contact, Terms, Privacy… (written in the admin panel)
       { path: "page/:slug", element: <InfoPage /> },
 
