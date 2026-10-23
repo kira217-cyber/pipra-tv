@@ -90,6 +90,11 @@ const Login = () => {
             {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
         </Field>
+        <div className="-mt-2 text-right">
+          <Link to="/forgot-password" state={{ identifier: identifier.trim() }} className="text-sm font-semibold text-brand hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <PrimaryButton type="submit" disabled={busy} className="w-full">
           {busy ? "Signing in..." : "Sign in"}
         </PrimaryButton>
