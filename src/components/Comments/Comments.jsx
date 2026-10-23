@@ -74,9 +74,11 @@ const Composer = ({ placeholder, submitLabel = "Comment", autoFocus, initial = "
           value={text}
           maxLength={2000}
           placeholder={placeholder}
-          onFocus={() => {
+          onFocus={(event) => {
             if (!requireSignIn("Sign in to comment")) return;
             setActive(true);
+            // Answering a reply starts with "@name " — type after it.
+            if (initial && text === initial) event.target.setSelectionRange(initial.length, initial.length);
           }}
           onChange={(event) => {
             setText(event.target.value);
@@ -169,7 +171,9 @@ const ExpandableText = ({ text }) => {
   );
 };
 
-const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onRemoved, onReplyAdded, onGiftReply, isReply }) => {
+// `isReply`: a reply in a thread. Answering it (or gifting it) adds another
+// reply to the same thread, starting with "@name" — like YouTube.
+const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onRemoved, onReplyAdded, onThreadReply, isReply }) => {
   const requireSignIn = useRequireSignIn();
   const [item, setItem] = useState(comment);
   const [menu, setMenu] = useState(false);
@@ -297,15 +301,13 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
               <Heart className="absolute -bottom-1 -right-1 h-3 w-3 fill-live text-live" />
             </span>
           )}
-          {!isReply && (
-            <button
-              type="button"
-              onClick={() => requireSignIn("Sign in to reply") && setReplying(true)}
-              className="cursor-pointer rounded-full px-3 py-1.5 font-semibold text-white hover:bg-white/10"
-            >
-              Reply
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => requireSignIn("Sign in to reply") && setReplying(true)}
+            className="cursor-pointer rounded-full px-3 py-1.5 font-semibold text-white hover:bg-white/10"
+          >
+            Reply
+          </button>
           {!item.mine && (
             <button
               type="button"
@@ -325,7 +327,7 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
             onClose={() => setGifting(false)}
             onSent={(result) => {
               // The gift arrives as a reply in this thread.
-              if (isReply) onGiftReply?.(result.comment);
+              if (isReply) onThreadReply?.(result.comment);
               else {
                 setReplies((list) => [...(list || []), result.comment]);
                 setShowReplies(true);
@@ -343,14 +345,18 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
               autoFocus
               placeholder="Add a reply…"
               submitLabel="Reply"
+              initial={isReply ? `${name.startsWith("@") ? name : `@${name}`} ` : ""}
               media={media}
               onCancel={() => setReplying(false)}
               onSubmit={async (text, attached) => {
                 const result = await run(() => addComment(videoId, text, item.id, attached));
                 if (result) {
-                  setReplies((list) => [...(list || []), result.comment]);
-                  setShowReplies(true);
-                  update({ replyCount: item.replyCount + 1 });
+                  if (isReply) onThreadReply?.(result.comment);
+                  else {
+                    setReplies((list) => [...(list || []), result.comment]);
+                    setShowReplies(true);
+                    update({ replyCount: item.replyCount + 1 });
+                  }
                   setReplying(false);
                   onReplyAdded?.();
                 }
@@ -377,7 +383,7 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
                 creator={creator}
                 media={media}
                 isReply
-                onGiftReply={(reply) => {
+                onThreadReply={(reply) => {
                   setReplies((list) => [...(list || []), reply]);
                   update({ replyCount: item.replyCount + 1 });
                 }}
