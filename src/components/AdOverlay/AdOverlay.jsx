@@ -9,6 +9,7 @@ import { SkipForward, Volume2, VolumeX } from "lucide-react";
 
 import { api } from "../../api/axios";
 import { trackAction } from "../../hooks/presenceSocket";
+import { trackAd } from "../../utils/adEvents";
 
 // Both size and position are admin-draggable (resize + move handles in
 // AdCampaignManager.jsx) and stored per-campaign as percentages of the
@@ -38,22 +39,23 @@ const DEFAULT_SECTION_SIZE = {
 // view — the ad's rotation state is untouched, so coming back mid-ad
 // resumes it right where it left off, like a paused reel on Facebook.
 //
-// Timing is per-campaign (firstDelaySeconds/intervalSeconds live on each
-// campaign, not a shared site-wide clock), so every campaign schedules
-// itself independently. If two campaigns' timers fire while one is
-// already showing, the other queues and shows immediately after — only
-// one ad is ever on screen at once, but each keeps its own cadence.
-const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, ref) => {
+// A video gets one ad, played once: `firstDelaySeconds` after playback
+// starts (0 = before the video), and never again on that video. With
+// `repeat` (Live TV, which never ends) a random ad comes every
+// `intervalSeconds`, counted from the end of the last one — so two ads
+// never play back to back.
+const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted, repeat = false }, ref) => {
   const [activeCampaign, setActiveCampaign] = useState(null);
   const [skipCountdown, setSkipCountdown] = useState(0);
   const [adMuted, setAdMuted] = useState(true);
 
   const adVideoRef = useRef(null);
   const activeRef = useRef(null);
-  const showTimersRef = useRef(new Map());
-  const queueRef = useRef([]);
+  const showTimerRef = useRef(null);
+  const campaignsRef = useRef(campaigns);
   const hideTimerRef = useRef(null);
   const skipTimerRef = useRef(null);
+  const whereOf = (campaign) => campaign.where || (mode === "pause" ? "video" : "live");
 
   useImperativeHandle(ref, () => ({
     pause: () => {
@@ -64,26 +66,24 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
     },
   }));
 
-  const clearShowTimer = (id) => {
-    const timer = showTimersRef.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      showTimersRef.current.delete(id);
-    }
+  const randomCampaign = () => {
+    const list = campaignsRef.current || [];
+    return list[Math.floor(Math.random() * list.length)] || null;
   };
 
   const scheduleCampaign = (campaign, delaySeconds) => {
-    clearShowTimer(campaign.id);
-    const timer = setTimeout(
-      () => attemptShow(campaign),
+    clearTimeout(showTimerRef.current);
+    if (!campaign) return;
+    showTimerRef.current = setTimeout(
+      () => !activeRef.current && showCampaign(campaign),
       Math.max(0, delaySeconds) * 1000,
     );
-    showTimersRef.current.set(campaign.id, timer);
   };
 
   const showCampaign = (campaign) => {
     activeRef.current = campaign;
     setActiveCampaign(campaign);
+    trackAd(campaign.id, "view", whereOf(campaign));
 
     if (campaign.type === "video") {
       const video = videoRef.current;
@@ -115,17 +115,6 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
     }
   };
 
-  const attemptShow = (campaign) => {
-    if (activeRef.current) {
-      if (!queueRef.current.some((item) => item.id === campaign.id)) {
-        queueRef.current.push(campaign);
-      }
-      return;
-    }
-
-    showCampaign(campaign);
-  };
-
   const endCurrentAd = () => {
     const finished = activeRef.current;
 
@@ -141,27 +130,20 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
       else video.muted = false;
     }
 
-    if (finished) {
-      scheduleCampaign(finished, finished.intervalSeconds ?? 120);
+    // Live TV: the next ad after the gap; a video: that was its one ad.
+    if (finished && repeat) {
+      scheduleCampaign(randomCampaign(), Math.max(30, finished.intervalSeconds ?? 600));
     }
-
-    const next = queueRef.current.shift();
-    if (next) showCampaign(next);
   };
 
   useEffect(() => {
+    campaignsRef.current = campaigns;
     if (!playbackStarted || !campaigns || campaigns.length === 0) return undefined;
 
-    const timers = showTimersRef.current;
-    campaigns.forEach((campaign) => {
-      scheduleCampaign(campaign, campaign.firstDelaySeconds ?? 30);
-    });
+    const first = repeat ? randomCampaign() : campaigns[0];
+    scheduleCampaign(first, first.firstDelaySeconds ?? 30);
 
-    return () => {
-      timers.forEach((timer) => clearTimeout(timer));
-      timers.clear();
-      queueRef.current = [];
-    };
+    return () => clearTimeout(showTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playbackStarted, campaigns]);
 
@@ -169,7 +151,7 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
     () => () => {
       clearTimeout(hideTimerRef.current);
       clearInterval(skipTimerRef.current);
-      showTimersRef.current.forEach((timer) => clearTimeout(timer));
+      clearTimeout(showTimerRef.current);
     },
     [],
   );
@@ -212,10 +194,14 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
             onClick={() => {
               if (activeCampaign.clickUrl) {
                 trackAction("Clicked ad", activeCampaign.title);
+                trackAd(activeCampaign.id, "click", whereOf(activeCampaign));
                 window.open(activeCampaign.clickUrl, "_blank", "noreferrer");
               }
             }}
-            onEnded={endCurrentAd}
+            onEnded={() => {
+              trackAd(activeCampaign.id, "complete", whereOf(activeCampaign));
+              endCurrentAd();
+            }}
           />
 
           <span className="pointer-events-none absolute left-4 top-4 rounded bg-black/60 px-2 py-1 text-[11px] font-bold text-white">
@@ -252,6 +238,7 @@ const AdOverlay = forwardRef(({ videoRef, mode, campaigns, playbackStarted }, re
               onClick={(event) => {
                 event.stopPropagation();
                 trackAction("Skipped ad", activeCampaign.title);
+                trackAd(activeCampaign.id, "skip", whereOf(activeCampaign));
                 endCurrentAd();
               }}
               className="absolute bottom-4 right-4 flex cursor-pointer items-center gap-1.5 rounded-full bg-black/70 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition hover:bg-black/85"

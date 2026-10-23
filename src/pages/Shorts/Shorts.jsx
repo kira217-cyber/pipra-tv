@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import {
   AlignLeft,
   ArrowLeft,
+  ArrowUpRight,
   Zap,
   ChevronDown,
   ChevronUp,
@@ -44,6 +45,8 @@ import { toast } from "../../utils/alerts";
 import { playableSrc, useHlsSource } from "../../utils/hls";
 import { setPageTitle, useDocumentTitle } from "../../hooks/useDocumentTitle";
 import StudioLink from "../../components/StudioLink/StudioLink";
+import { useAdView } from "../../hooks/useAdView";
+import { trackAd, visitRank } from "../../utils/adEvents";
 
 const TABS = [
   { key: "foryou", label: "For You" },
@@ -439,6 +442,125 @@ const shuffled = (list, seed) => {
   return out;
 };
 
+// A Sponsored reel between the Shorts (admin → Ads → video ad on Shorts).
+// It plays like a Short; swiping on skips it.
+const SponsoredReel = ({ ad, muted, onToggleMute }) => {
+  const navigate = useNavigate();
+  const containerRef = useRef(null);
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const played = useRef(false);
+  const finished = useRef(false);
+  useAdView(containerRef, ad.id, "shorts_feed");
+  useHlsSource(videoRef, ad.video);
+
+  // Play while on screen; leaving before the end counts as a skip.
+  useEffect(() => {
+    const el = containerRef.current;
+    const player = videoRef.current;
+    if (!el || !player) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) player.play().catch(() => {});
+        else {
+          player.pause();
+          if (played.current && !finished.current) {
+            finished.current = true;
+            trackAd(ad.id, "skip", "shorts_feed");
+          }
+        }
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ad.id]);
+
+  const togglePlay = () => {
+    const player = videoRef.current;
+    if (!player) return;
+    if (player.paused) player.play().catch(() => {});
+    else player.pause();
+  };
+
+  const openAd = () => {
+    if (!ad.url) return;
+    trackAd(ad.id, "click", "shorts_feed");
+    if (ad.url.startsWith("/")) navigate(ad.url);
+    else window.open(ad.url, "_blank", "noreferrer");
+  };
+
+  return (
+    <div ref={containerRef} className="relative flex h-full w-full justify-center">
+      <div className="relative h-full w-full overflow-hidden bg-black lg:aspect-[9/16] lg:w-auto lg:rounded-2xl">
+        <video
+          ref={videoRef}
+          src={playableSrc(ad.video)}
+          muted={muted}
+          loop
+          playsInline
+          preload="metadata"
+          onClick={togglePlay}
+          onPlay={() => {
+            played.current = true;
+            setPlaying(true);
+          }}
+          onPause={() => setPlaying(false)}
+          onTimeUpdate={(event) => {
+            const { currentTime, duration } = event.currentTarget;
+            if (duration && currentTime / duration > 0.95 && !finished.current) {
+              finished.current = true;
+              trackAd(ad.id, "complete", "shorts_feed");
+            }
+          }}
+          className="h-full w-full cursor-pointer object-contain"
+        />
+
+        {!playing && (
+          <button
+            type="button"
+            aria-label="Play"
+            onClick={togglePlay}
+            className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
+          >
+            <Play className="ml-1 h-9 w-9 fill-white text-white" />
+          </button>
+        )}
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        <div className="absolute right-2 top-[max(0.75rem,env(safe-area-inset-top))]">
+          <button
+            type="button"
+            aria-label={muted ? "Unmute" : "Mute"}
+            onClick={onToggleMute}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white"
+          >
+            {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+          </button>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-4 px-4 lg:bottom-6">
+          <span className="rounded bg-[#fbbf24] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-black">Sponsored</span>
+          <p className="mt-2 line-clamp-2 text-[15px] font-semibold text-white">{ad.title}</p>
+          {ad.url && (
+            <button
+              type="button"
+              onClick={openAd}
+              className="bg-brand-gradient mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white"
+            >
+              Learn more <ArrowUpRight className="h-4 w-4" />
+            </button>
+          )}
+          <p className="mt-2 flex items-center justify-center gap-1 text-xs text-white/70">
+            <ChevronUp className="h-4 w-4" /> Swipe up to skip
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Shorts = () => {
   useDocumentTitle("Shorts");
   const navigate = useNavigate();
@@ -456,6 +578,7 @@ const Shorts = () => {
   const { data, loading } = useFetch("/api/videos", { type: "shorts", sort: "random", limit: 30 });
   // Opened from a Short on Home / a channel: start with that one.
   const { data: first } = useFetch(startId ? `/api/videos/${startId}` : null);
+  const { data: adData } = useFetch("/api/site/shorts-ads");
 
   const videos = useMemo(() => {
     const pool = data?.videos || [];
@@ -478,10 +601,39 @@ const Shorts = () => {
     return out;
   }, [videos, rounds]);
 
+  // Sponsored reels: one after every `every` Shorts (taking turns, in this
+  // visit's random order), and an ad made for a particular Short just
+  // before it.
+  const items = useMemo(() => {
+    const general = [...(adData?.ads || [])].sort((a, b) => visitRank(a.id) - visitRank(b.id));
+    const byVideo = adData?.byVideo || {};
+    const every = Math.max(2, adData?.every || 5);
+    if (!general.length && !Object.keys(byVideo).length) return feed;
+    const out = [];
+    let since = 0;
+    let turn = 0;
+    feed.forEach((item, index) => {
+      const own = byVideo[videoId(item.video)];
+      if (own && index > 0 && !out[out.length - 1]?.ad) {
+        out.push({ ad: own, key: `ad-${index}-${own.id}` });
+        since = 0;
+      }
+      out.push(item);
+      since += 1;
+      if (general.length && since >= every) {
+        const ad = general[turn % general.length];
+        turn += 1;
+        out.push({ ad, key: `ad-${index}-${ad.id}` });
+        since = 0;
+      }
+    });
+    return out;
+  }, [feed, adData]);
+
   const onFeedScroll = (event) => {
     const at = Math.round(event.currentTarget.scrollTop / Math.max(1, event.currentTarget.clientHeight));
     setIndex(at);
-    if (videos.length && at >= feed.length - LOOP_AHEAD && rounds < MAX_ROUNDS) setLoop({ tab, rounds: rounds + 1 });
+    if (videos.length && at >= items.length - LOOP_AHEAD && rounds < MAX_ROUNDS) setLoop({ tab, rounds: rounds + 1 });
   };
 
   // A shared link (?v=…) puts its Short first. It can arrive after the
@@ -507,7 +659,7 @@ const Shorts = () => {
   const goTo = (next) => {
     const feed = feedRef.current;
     if (!feed || !videos.length) return;
-    const target = Math.max(0, Math.min(feed.length - 1, next));
+    const target = Math.max(0, Math.min(items.length - 1, next));
     feed.scrollTo({ top: target * feed.clientHeight, behavior: "smooth" });
   };
 
@@ -635,9 +787,13 @@ const Shorts = () => {
               onScroll={onFeedScroll}
               className="no-scrollbar h-full snap-y snap-mandatory overflow-y-scroll overflow-x-hidden overscroll-contain"
             >
-              {feed.map(({ video, key }) => (
+              {items.map(({ video, ad, key }) => (
                 <div key={key} className="h-full snap-start snap-always lg:py-2">
-                  <ShortItem video={video} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
+                  {ad ? (
+                    <SponsoredReel ad={ad} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
+                  ) : (
+                    <ShortItem video={video} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
+                  )}
                 </div>
               ))}
             </div>
@@ -656,7 +812,7 @@ const Shorts = () => {
               <button
                 type="button"
                 aria-label="Next short"
-                disabled={index >= feed.length - 1}
+                disabled={index >= items.length - 1}
                 onClick={() => goTo(index + 1)}
                 className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-card-2 text-white transition hover:bg-white/15 disabled:cursor-default disabled:opacity-30"
               >

@@ -244,6 +244,7 @@ const HlsPlayer = ({ src, poster, title, adsTarget, onUnavailable }) => {
         mode="mute"
         campaigns={campaigns}
         playbackStarted={hasStarted}
+        repeat
       />
 
       {error && (

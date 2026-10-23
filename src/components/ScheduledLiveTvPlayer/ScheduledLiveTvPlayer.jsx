@@ -322,6 +322,7 @@ const ScheduledLiveTvPlayer = ({ channelId, initialNowPlaying, poster, title, ad
         mode="mute"
         campaigns={campaigns}
         playbackStarted={hasStarted}
+        repeat
       />
 
       {error && (

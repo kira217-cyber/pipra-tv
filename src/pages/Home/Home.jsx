@@ -14,6 +14,8 @@ import { VideoRail } from "../../components/VideoCard/VideoCard";
 import { IMG, channelPath, mediaUrl, videoId, viewsText } from "../../utils/format";
 import { useRailGestures } from "../../hooks/useRailGestures";
 import StudioLink from "../../components/StudioLink/StudioLink";
+import { useAdView } from "../../hooks/useAdView";
+import { trackAd, visitRank } from "../../utils/adEvents";
 
 const PAGE_SIZE = 12;
 // Hovering a Short plays this many seconds on a loop.
@@ -29,8 +31,11 @@ const ShortsMark = () => (
   </svg>
 );
 
-// Sponsored card — the admin's home ad, in the feed style.
-const SponsoredCard = ({ ad }) => {
+// Sponsored card — the admin's home ad, in the feed style. `where` is
+// home_top or home_feed, for the ad's analytics.
+const SponsoredCard = ({ ad, where }) => {
+  const cardRef = useRef(null);
+  useAdView(cardRef, ad.id, where);
   const host = (() => {
     try {
       return new URL(ad.url).hostname.replace(/^www\./, "");
@@ -44,8 +49,8 @@ const SponsoredCard = ({ ad }) => {
   const open = internal ? { to: ad.url } : ad.url ? { href: ad.url, target: "_blank", rel: "noreferrer" } : {};
 
   return (
-    <article>
-      <Wrapper {...open} className="relative block overflow-hidden rounded-2xl border border-line bg-card-2">
+    <article ref={cardRef}>
+      <Wrapper {...open} onClick={() => ad.url && trackAd(ad.id, "click", where)} className="relative block overflow-hidden rounded-2xl border border-line bg-card-2">
         <img src={mediaUrl(ad.image, IMG.hero)} alt="Sponsored" className="aspect-video w-full object-cover" loading="eager" />
         {ad.url && (
           <span className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white">
@@ -269,8 +274,13 @@ const Home = () => {
   const channels = settings?.channels || [];
   const pinnedShorts = curated.pinnedShorts || [];
   const shorts = [...pinnedShorts, ...(shortsData?.videos || []).filter((v) => !pinnedShorts.some((p) => p.id === v.id))];
-  const ad = settings?.ads?.home;
-  const feedAds = settings?.ads?.feed || [];
+  // Every running banner, in this visit's random order: one on top (an
+  // "always on top" one if the admin set it), the rest after each Shorts row.
+  const banners = (settings?.ads?.banners || [settings?.ads?.home, ...(settings?.ads?.feed || [])].filter(Boolean))
+    .filter((banner) => banner.image)
+    .sort((a, b) => visitRank(a.id) - visitRank(b.id));
+  const ad = banners.find((banner) => banner.pinTop) || banners[0];
+  const feedAds = banners.filter((banner) => banner !== ad);
   const sections = curated.sections || [];
   // Admin-pinned videos lead the feed; the rest follow without repeats.
   const pinned = curated.pinnedVideos || [];
@@ -278,15 +288,10 @@ const Home = () => {
 
   if (pages.loading && pages.page === 0) return <Spinner className="min-h-[60vh]" />;
 
-  // Cards first (videos, with a feed ad after every 6th), then full-width
-  // rows after every `shortsEvery` cards — rounded up to whole grid rows on
-  // wider screens so no row is left half empty.
-  const cards = [];
-  feed.forEach((video, index) => {
-    cards.push(<FeedCard key={videoId(video)} video={video} eager={index < 2} />);
-    const adIndex = (index + 1) / 6 - 1;
-    if (Number.isInteger(adIndex) && feedAds[adIndex]) cards.push(<SponsoredCard key={`ad-${feedAds[adIndex].id}`} ad={feedAds[adIndex]} />);
-  });
+  // Cards first, then full-width rows after every `shortsEvery` cards —
+  // rounded up to whole grid rows on wider screens so no row is left half
+  // empty.
+  const cards = feed.map((video, index) => <FeedCard key={videoId(video)} video={video} eager={index < 2} />);
   const chunk = Math.ceil(shortsEvery / columns) * columns;
 
   // After the Shorts row: Live TV first, then channels, then admin rows.
@@ -334,6 +339,12 @@ const Home = () => {
   const lead = (ad?.image ? 1 : 0) + (ownChannel ? 1 : 0);
   const firstChunk = columns === 1 ? mobileShortsAfter : Math.ceil((shortsEvery + lead) / columns) * columns - lead;
   const allLoaded = pages.page >= pages.totalPages;
+  // The other banners open the card rows after each Shorts row, one each
+  // (a short feed puts the rest at its end).
+  feedAds.forEach((feedAd, k) => {
+    const at = firstChunk + k * chunk;
+    if (at <= cards.length || allLoaded) cards.splice(Math.min(at, cards.length), 0, <SponsoredCard key={`ad-${feedAd.id}`} ad={feedAd} where="home_feed" />);
+  });
   const blocks = [];
   let row = 0;
   for (let start = 0, end = firstChunk; start < cards.length; start = end, end += chunk, row += 1) {
@@ -355,7 +366,7 @@ const Home = () => {
 
   return (
     <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
-      {ad?.image && <SponsoredCard ad={ad} />}
+      {ad?.image && <SponsoredCard ad={ad} where="home_top" />}
       {ownChannel && <LivePreviewCard channel={ownChannel} />}
       {feed.length === 0 && shorts.length === 0 ? (
         <div className="sm:col-span-2 lg:col-span-3">
