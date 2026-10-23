@@ -360,7 +360,7 @@ const ShortItem = ({ video, muted, onToggleMute }) => {
           <div className="pointer-events-auto flex w-fit max-w-full items-center gap-2">
             <Link to={channelPath(video.channel)} className="flex min-w-0 items-center gap-1">
               <span className="truncate text-sm font-semibold text-white">{handleOf(video.channel)}</span>
-              {video.channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#2f86e6] text-white" />}
+              {video.channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
             </Link>
             {!isMine && (
               <SubscribeButton

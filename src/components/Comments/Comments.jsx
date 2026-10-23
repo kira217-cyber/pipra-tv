@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ChevronDown, ChevronUp, EllipsisVertical, Gift, Heart, ListFilter, MessageSquareOff, Pencil, Pin, ThumbsUp, Trash2 } from "lucide-react";
+import { BadgeCheck, ChevronDown, ChevronUp, EllipsisVertical, Gift, Heart, ListFilter, MessageSquareOff, Pencil, Pin, ThumbsUp, Trash2 } from "lucide-react";
 
 import { Avatar, Spinner } from "../ui/ui";
 import GiftPanel, { GiftBadge } from "./GiftPanel";
@@ -251,6 +251,7 @@ const CommentItem = ({ comment, videoId, isOwner, creator, media, onChanged, onR
         )}
         <p className="flex flex-wrap items-center gap-x-1.5 text-[13px]">
           <span className={item.isCreator ? "rounded-full bg-white/15 px-2 font-semibold text-white" : "font-semibold text-white"}>{name}</span>
+          {author.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
           <BadgeLabel badge={author.badge} />
           <ContributorBadges badges={author.badges} />
           <span className="text-muted">

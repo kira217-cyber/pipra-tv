@@ -235,7 +235,7 @@ const WatchBody = ({ video, viewer }) => {
             <span className="min-w-0">
               <span className="flex items-center gap-1 font-semibold text-white">
                 <span className="truncate">{channel?.name}</span>
-                {channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-muted text-page" />}
+                {channel?.verified && <BadgeCheck className="h-[18px] w-[18px] shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
               </span>
               <span className="block text-xs text-muted">
                 {formatCount(subscribers)} {subscribers === 1 ? "subscriber" : "subscribers"}

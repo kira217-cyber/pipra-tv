@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, EllipsisVertical, Play } from "lucide-react";
+import { BadgeCheck, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, EllipsisVertical, Play } from "lucide-react";
 
 import { Avatar } from "../ui/ui";
 import VideoPreview from "../VideoPreview/VideoPreview";
@@ -47,7 +47,12 @@ export const VideoCard = ({ video, showChannel = true, className = "" }) => {
       <div className="mt-2 flex gap-1">
         <Link to={to} className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm font-medium leading-snug text-white sm:text-[15px]">{video.title}</p>
-          {showChannel && video.channel?.name && <p className="mt-0.5 truncate text-xs text-muted sm:text-sm">{video.channel?.name}</p>}
+          {showChannel && video.channel?.name && (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted sm:text-sm">
+              <span className="truncate">{video.channel?.name}</span>
+              {video.channel?.verified && <BadgeCheck className="h-3.5 w-3.5 shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
+            </p>
+          )}
           {videoMeta(video) && <p className="truncate text-xs text-muted sm:text-sm">{videoMeta(video)}</p>}
         </Link>
         <VideoMenu video={video} className={cardMenuClass} />

@@ -349,7 +349,7 @@ const Channel = ({ handle }) => {
         <div className="min-w-0 flex-1">
           <h1 className="flex items-center gap-2 text-2xl font-bold leading-tight sm:text-4xl">
             <span className="truncate">{channel.name}</span>
-            {channel.verified && <BadgeCheck className="h-5 w-5 shrink-0 fill-muted text-page sm:h-6 sm:w-6" />}
+            {channel.verified && <BadgeCheck className="h-6 w-6 shrink-0 fill-[#1877f2] text-white sm:h-7 sm:w-7" aria-label="Verified" />}
             <BadgeLabel badge={channel.badge} className="sm:text-xs" />
           </h1>
           <p className="mt-1 text-sm text-muted sm:mt-2">

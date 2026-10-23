@@ -44,7 +44,7 @@ const FeedCard = ({ video, eager = false }) => {
             {video.channel?.name && (
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{video.channel?.name}</span>
-                {video.channel?.verified && <BadgeCheck className="h-3.5 w-3.5 shrink-0 fill-muted text-page" />}
+                {video.channel?.verified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[#1877f2] text-white" aria-label="Verified" />}
               </span>
             )}
             {videoMeta(video) && <span>{videoMeta(video)}</span>}
