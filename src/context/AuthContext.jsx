@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { studioApi, TOKEN_KEY, USER_KEY, CHANNEL_KEY, SESSION_EXPIRED_EVENT } from "../api/studioApi";
+import { studioApi, TOKEN_KEY, USER_KEY, CHANNEL_KEY, SESSION_EXPIRED_EVENT, WELCOME_EVENT } from "../api/studioApi";
 import { clearAuthCache } from "../hooks/useFetch";
 import { toast } from "../utils/alerts";
 
@@ -15,6 +15,8 @@ const read = (key) => {
     return null;
   }
 };
+
+const welcome = (kind, name, via) => window.dispatchEvent(new CustomEvent(WELCOME_EVENT, { detail: { kind, name, via } }));
 
 const store = (key, value) => {
   if (value) localStorage.setItem(key, JSON.stringify(value));
@@ -97,6 +99,7 @@ export const AuthProvider = ({ children }) => {
     async ({ identifier, password }) => {
       const { data } = await studioApi.post("/api/auth/login", { identifier, password });
       saveSession(data.data);
+      welcome("login", data.data.user?.name, /^(\+?88)?01\d{9}$/.test(String(identifier).replace(/[\s-]/g, "")) ? "phone" : "email");
       return data.data;
     },
     [saveSession],
@@ -106,6 +109,7 @@ export const AuthProvider = ({ children }) => {
     async (payload) => {
       const { data } = await studioApi.post("/api/auth/register", payload);
       saveSession(data.data);
+      welcome("register", data.data.user?.name, payload.method || (payload.phone && !payload.email ? "phone" : "email"));
       return data.data;
     },
     [saveSession],

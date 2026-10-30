@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
-import { ChevronRight, Crown, ExternalLink, LogIn, LogOut, Play } from "lucide-react";
+import { ChevronRight, Crown, ExternalLink, LogIn, LogOut, Play, Trash2 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { Avatar, IconTile, Logo } from "../ui/ui";
@@ -9,6 +9,8 @@ import { channelPath } from "../../utils/format";
 import StudioLink from "../StudioLink/StudioLink";
 import SiteFooter from "../SiteFooter/SiteFooter";
 import { openStudio } from "../../utils/handoff";
+import { confirmDialog, toast } from "../../utils/alerts";
+import DeleteAccountModal from "../AccountModals/DeleteAccountModal";
 
 const MenuLink = ({ item, onNavigate, compact }) =>
   item.studio ? (
@@ -116,6 +118,17 @@ const ProfileCard = ({ onNavigate }) => {
 const NavMenu = ({ onNavigate, showBrowse = false }) => {
   const { user, channel, logout } = useAuth();
   const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+  const closeDelete = useCallback(() => setDeleting(false), []);
+  const tile = showBrowse ? { size: "h-9 w-9", iconSize: "h-[18px] w-[18px]" } : { size: "h-10 w-10", iconSize: "h-5 w-5" };
+
+  const signOut = async () => {
+    if (!(await confirmDialog("Logout করবেন?", { text: "আপনি কি PipraTube থেকে logout করতে চান?", confirmText: "Logout" }))) return;
+    logout();
+    onNavigate?.();
+    navigate("/");
+    toast.success("আপনি logout করেছেন");
+  };
 
   const creatorMenu = CREATOR_MENU.map((item) =>
     item.to === "__channel__" ? channel ? { ...item, to: channelPath(channel) } : user ? { ...item, to: "/channel/create", studio: true } : { ...item, to: "/login" } : item,
@@ -154,19 +167,30 @@ const NavMenu = ({ onNavigate, showBrowse = false }) => {
       {user && (
         <>
           <div className="h-px bg-line" />
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              onNavigate?.();
-              navigate("/");
-            }}
-            className="group flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/5"
-          >
-            <IconTile icon={LogOut} gradient={["#fca5a5", "#dc2626"]} size={showBrowse ? "h-9 w-9" : "h-10 w-10"} iconSize={showBrowse ? "h-[18px] w-[18px]" : "h-5 w-5"} />
+          <button type="button" onClick={signOut} className="group flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/5">
+            <IconTile icon={LogOut} gradient={["#fca5a5", "#dc2626"]} {...tile} />
             <span className="flex-1 text-[15px] font-medium text-live">Logout</span>
             <ChevronRight className="h-4 w-4 text-muted" />
           </button>
+          <button type="button" onClick={() => setDeleting(true)} className="group -mt-3 flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-white/5">
+            <IconTile icon={Trash2} gradient={["#7f1d1d", "#450a0a"]} {...tile} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-[#ff6b81]">Delete Account</span>
+              <span className="block truncate text-xs text-muted">Account স্থায়ীভাবে delete করুন</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </button>
+          {deleting && (
+            <DeleteAccountModal
+              onClose={closeDelete}
+              onDeleted={() => {
+                setDeleting(false);
+                logout();
+                onNavigate?.();
+                navigate("/");
+              }}
+            />
+          )}
         </>
       )}
 

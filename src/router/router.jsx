@@ -19,6 +19,7 @@ const Register = lazy(() => import("../pages/Auth/Register"));
 const ForgotPassword = lazy(() => import("../pages/Auth/ForgotPassword"));
 const Handoff = lazy(() => import("../pages/Auth/Handoff"));
 const InfoPage = lazy(() => import("../pages/InfoPage/InfoPage"));
+const DeleteAccount = lazy(() => import("../pages/DeleteAccount/DeleteAccount"));
 const CoinsPage = lazy(() => import("../pages/Coins/Coins"));
 const CoinHistoryPage = lazy(() => import("../pages/Coins/CoinHistory"));
 import NotFound from "../pages/NotFound/NotFound";
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "forgot-password", element: <ForgotPassword /> },
+      { path: "delete-account", element: <DeleteAccount /> },
       // Arriving from PipraTube Studio with a one-time sign-in code.
       { path: "sso", element: <Handoff /> },
       { path: "you", element: signedIn(<You />) },

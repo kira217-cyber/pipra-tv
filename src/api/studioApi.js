@@ -11,6 +11,8 @@ export const CHANNEL_KEY = "pipra_v2_channel";
 // Fired when the server rejects the token, so AuthContext can sign out
 // without this module importing React state.
 export const SESSION_EXPIRED_EVENT = "pipra:session-expired";
+// Fired after signing in / up, for the congratulations modal ({ kind, name, via }).
+export const WELCOME_EVENT = "pipra:welcome";
 
 export const studioApi = axios.create({ baseURL: api.defaults.baseURL });
 
